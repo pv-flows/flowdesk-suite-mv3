@@ -1,0 +1,74 @@
+/* FlowDesk MV3 — tokens.css
+   Sprint 3.3 — Design tokens CSS */
+
+:root {
+    /* Cores */
+    --fd-primary:        #6b46c1;
+    --fd-primary-hover:  #553c9a;
+    --fd-bg:             #ffffff;
+    --fd-bg-secondary:   #f7fafc;
+    --fd-border:         #e2e8f0;
+    --fd-text:           #1a202c;
+    --fd-text-muted:     #718096;
+    --fd-danger:         #e53e3e;
+    --fd-success:        #38a169;
+
+    /* Tipografia (Escalonável via --fd-font-size-base) */
+    --fd-font-family:     'Inter', system-ui, -apple-system, sans-serif;
+    --fd-font-size-base:  13px;
+    --fd-font-size-micro: calc(var(--fd-font-size-base) - 4px); /* ~9px */
+    --fd-font-size-xs:    calc(var(--fd-font-size-base) - 3px); /* ~10px */
+    --fd-font-size-sm:    calc(var(--fd-font-size-base) - 2px); /* ~11px */
+    --fd-font-size-md:    calc(var(--fd-font-size-base) - 1px); /* ~12px */
+    --fd-font-size-lg:    calc(var(--fd-font-size-base) + 1px); /* ~14px */
+    --fd-font-size-xl:    calc(var(--fd-font-size-base) + 3px); /* ~16px */
+    --fd-font-size-2xl:   calc(var(--fd-font-size-base) + 7px); /* ~20px */
+
+    /* Forma */
+    --fd-radius:         8px;
+    --fd-radius-sm:      4px;
+    --fd-shadow:         0 4px 15px rgba(107, 70, 193, 0.15);
+    --fd-shadow-lg:      0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-fd-theme="dark"] {
+    --fd-bg:             #1a202c;
+    --fd-bg-secondary:   #2d3748;
+    --fd-border:         #4a5568;
+    --fd-text:           #f7fafc;
+    --fd-text-muted:     #a0aec0;
+}
+
+/* Blindagem: redeclara tokens nos containers para impedir sobrescrita pela :root */
+#painel-financeiro,
+#bloco-notas,
+#abrir-painel,
+#login-overlay,
+#modal-confirm-global,
+#macro-suggestion-panel {
+    --fd-primary:        #6b46c1;
+    --fd-primary-hover:  #553c9a;
+    --fd-bg:             #ffffff;
+    --fd-bg-secondary:   #f7fafc;
+    --fd-border:         #e2e8f0;
+    --fd-text:           #1a202c;
+    --fd-text-muted:     #718096;
+    --fd-danger:         #e53e3e;
+    --fd-success:        #38a169;
+    --fd-font-family:     'Inter', system-ui, -apple-system, sans-serif;
+    --fd-radius:         8px;
+    --fd-radius-sm:      4px;
+    --fd-shadow:         0 4px 15px rgba(107, 70, 193, 0.15);
+    --fd-shadow-lg:      0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+#painel-financeiro[class*="dark-mode"],
+#bloco-notas[class*="dark-mode"],
+#macro-suggestion-panel[class*="dark-mode"],
+#login-overlay[class*="dark-mode"] {
+    --fd-bg:             #1a202c;
+    --fd-bg-secondary:   #2d3748;
+    --fd-border:         #4a5568;
+    --fd-text:           #f7fafc;
+    --fd-text-muted:     #a0aec0;
+}

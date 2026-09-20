@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurações — FlowDesk Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <h2>⚙️ FlowDesk</h2>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-target="sec-identidade">Identidade</button>
+                <button class="nav-item" data-target="sec-seguranca">Segurança</button>
+                <button class="nav-item" data-target="sec-aparencia">Aparência</button>
+                <button class="nav-item" data-target="sec-personalizacao">Personalização</button>
+                <button class="nav-item" data-target="sec-sites">Sites Ativos</button>
+                <button class="nav-item" data-target="sec-backup">Backup</button>
+                <button class="nav-item" data-target="sec-sobre">Sobre</button>
+            </nav>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <!-- 1. Identidade -->
+            <section id="sec-identidade" class="section active">
+                <h3>Identidade do Operador</h3>
+                <p class="desc">Configure seu nome e equipe para identificação na telemetria.</p>
+                <div class="form-group">
+                    <label>Nome do Operador</label>
+                    <input type="text" id="opt-nome" placeholder="Ex: Paulo Silva">
+                </div>
+                <div class="form-group">
+                    <label>Equipe</label>
+                    <select id="opt-equipe">
+                        <!-- Preenchido via AuthModule.getEquipes() -->
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" id="btn-save-identidade" style="flex: 1;">Salvar Identidade</button>
+                    <button class="btn btn-secondary" id="btn-change-operator" style="flex: 1;">Trocar Operador</button>
+                </div>
+            </section>
+
+            <!-- 2. Segurança -->
+            <section id="sec-seguranca" class="section">
+                <h3>Segurança e Credenciais</h3>
+                <p class="desc">Configurações de integração e acesso de operadores.</p>
+                
+                <div class="card">
+                    <h4>Chave Groq API (IA)</h4>
+                    <div class="form-group">
+                        <input type="password" id="opt-groq-key" placeholder="gsk_...">
+                        <button class="btn btn-secondary" id="btn-save-groq">Salvar Chave Groq</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>Webhook URL (Telemetria)</h4>
+                    <div class="form-group">
+                        <input type="password" id="opt-webhook-url" placeholder="https://script.google.com/macros/s/...">
+                        <button class="btn btn-secondary" id="btn-save-webhook">Salvar Webhook</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>Whitelist de Operadores</h4>
+                    <p class="desc-sm">Um por linha, no formato: <code>Nome,Equipe</code> (Ex: Paulo Silva,Digital). Deixe vazio para permitir todos.</p>
+                    <div class="form-group">
+                        <textarea id="opt-whitelist" rows="5" placeholder="Paulo Silva,Digital\nMaria,Presencial"></textarea>
+                        <button class="btn btn-secondary" id="btn-save-whitelist" style="margin-top: 8px;">Salvar Whitelist</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Aparência -->
+            <section id="sec-aparencia" class="section">
+                <h3>Aparência</h3>
+                <p class="desc">Personalize o visual da extensão.</p>
+                
+                <div class="form-group">
+                    <label>Tema</label>
+                    <select id="opt-theme">
+                        <option value="light">Claro ☀️</option>
+                        <option value="dark">Escuro 🌙</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tamanho da Fonte Base</label>
+                    <select id="opt-font-size">
+                        <option value="12px">12px (Pequena)</option>
+                        <option value="13px">13px (Padrão)</option>
+                        <option value="14px">14px (Média)</option>
+                        <option value="16px">16px (Grande)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 4. Personalização -->
+            <section id="sec-personalizacao" class="section">
+                <h3>Personalização do Painel</h3>
+                <p class="desc">Escolha quais opções de pagamento ficam visíveis no Gerador de Propostas. Desative as que você não utiliza para deixar o painel mais compacto.</p>
+
+                <div class="card">
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>🆔 Matrícula</span>
+                            <small>Campo de matrícula do aluno e auto-preenchimento</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-matricula" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>💠 PIX</span>
+                            <small>Valor com desconto para pagamento via PIX</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-pix" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>📄 Boleto à Vista</span>
+                            <small>Valor para pagamento em boleto à vista</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-boleto-vista" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>📑 Boleto Parcelado</span>
+                            <small>Entrada + parcelas via boleto</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-boleto-parcelado" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>💳 Cartão</span>
+                            <small>Valor e quantidade de parcelas no cartão de crédito</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-cartao" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>Geração de Propostas</h4>
+                    <div class="toggle-row">
+                        <div class="toggle-label">
+                            <span>📝 Inserir "referente a" automaticamente</span>
+                            <small>Quando ativado, adiciona o prefixo "referente a" antes do campo de referência na proposta gerada</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-auto-referencia" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Sites Ativos -->
+            <section id="sec-sites" class="section">
+                <h3>Sites Ativos</h3>
+                <p class="desc">Gerencie onde a extensão está habilitada.</p>
+
+                <div class="card">
+                    <div class="site-toggle">
+                        <span>conversas.hyperflow.global</span>
+                        <input type="checkbox" id="site-hyperflow" checked disabled>
+                    </div>
+                    <div class="site-toggle">
+                        <span>web.whatsapp.com</span>
+                        <input type="checkbox" id="site-whatsapp">
+                    </div>
+                    <div class="site-toggle">
+                        <span>mail.google.com</span>
+                        <input type="checkbox" id="site-gmail">
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 15px;">
+                    <h4>Adicionar Domínio Customizado</h4>
+                    <div class="form-group" style="display: flex; gap: 8px;">
+                        <input type="text" id="opt-new-site" placeholder="ex: crm.empresa.com" style="flex: 1;">
+                        <button class="btn btn-secondary" id="btn-add-site">Adicionar</button>
+                    </div>
+                    <div id="custom-sites-list" style="margin-top: 10px;"></div>
+                </div>
+            </section>
+
+            <!-- 5. Backup -->
+            <section id="sec-backup" class="section">
+                <h3>Backup e Manutenção</h3>
+                <p class="desc">Gerencie seus dados locais.</p>
+
+                <div class="card">
+                    <button class="btn btn-secondary btn-block" id="btn-reset-positions">🔄 Resetar Posições dos Painéis</button>
+                    <button class="btn btn-secondary btn-block" id="btn-export-backup" style="margin-top: 8px;">⬇️ Exportar JSON</button>
+                    <button class="btn btn-secondary btn-block" id="btn-import-backup" style="margin-top: 8px;">⬆️ Importar JSON</button>
+                    <input type="file" id="file-import" accept=".json" style="display: none;">
+                </div>
+
+                <div class="card" style="margin-top: 15px; border-color: #feb2b2;">
+                    <h4 style="color: #e53e3e;">Zona de Perigo</h4>
+                    <button class="btn btn-danger btn-block" id="btn-clear-history">🗑️ Limpar Histórico de Propostas</button>
+                    <button class="btn btn-danger btn-block" id="btn-factory-reset" style="margin-top: 8px;">⚠️ Reset de Fábrica</button>
+                </div>
+            </section>
+
+            <!-- 6. Sobre -->
+            <section id="sec-sobre" class="section">
+                <h3>Sobre</h3>
+                
+                <div class="card" style="text-align: center; padding: 30px;">
+                    <h2 style="color: #6b46c1; margin-bottom: 5px;">FlowDesk Suite Corporativa</h2>
+                    <p style="color: #718096; font-size: 14px;">SER Educacional</p>
+                    <p style="margin-top: 20px; font-weight: 600;">Versão: <span id="opt-version">...</span></p>
+                    <div style="margin-top: 20px; text-align: center; color: #718096; font-size: 14px;">
+                        <p style="font-weight: 600; color: #6b46c1; margin-bottom: 5px;">Suporte Técnico</p>
+                        <p>Paulo Victor Freire da Silva</p>
+                        <p style="margin-top: 5px;">Email: <a href="mailto:pv.flows@gmail.com" style="color: #6b46c1; text-decoration: none;">pv.flows@gmail.com</a></p>
+                        <p style="margin-top: 10px;">
+                            <a href="https://www.linkedin.com/in/paulovictorfreire98/" target="_blank" style="color: #6b46c1; text-decoration: none; margin-right: 15px; font-weight: 500;">LinkedIn</a>
+                            <a href="https://github.com/pv-flows" target="_blank" style="color: #6b46c1; text-decoration: none; font-weight: 500;">GitHub</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Scripts necessários para o AuthModule funcionar -->
+    <script src="../content/storage.js"></script>
+    <script src="../content/modules/auth.js"></script>
+    <script src="settings.js" type="module"></script>
+</body>
+</html>
