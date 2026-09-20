@@ -808,51 +808,122 @@ globalThis.FinModule = (function () {
              * @param {Object} proposta - Dados da proposta
              * @returns {string} Texto formatado
              */
+            /**
+             * Monta o texto da proposta financeira a partir dos dados salvos e do template configurado.
+             * @param {Object} proposta - Dados da proposta
+             * @returns {Promise<string>} Texto formatado
+             */
             async function mountProposalText(proposta) {
                 const v = (key) => proposta[key] || '';
                 const has = (key) => !!v(key);
 
-                // Ler configuração de auto_referencia
+                // Ler configuração de auto_referencia e template customizado
                 const secData = await SafeStorage.get('fd_panel_sections', {});
                 const autoReferencia = secData.auto_referencia !== false; // padrão: true
+                const customTemplate = await SafeStorage.get('fd_proposal_template', null);
 
-                let msg = `Consta uma pendência financeira em sua matrícula no valor total de *R$ ${v('valor_total')}*`;
-                if (has('referencia')) {
-                    if (autoReferencia) {
-                        msg += `, referente a *${v('referencia')}*`;
-                    } else {
-                        msg += `, *${v('referencia')}*`;
-                    }
-                }
-                msg += `. Temos uma oportunidade de negociação para regularizar hoje, conforme as condições abaixo:\n\n`;
+                const DEFAULT_TEMPLATE = `Consta uma pendência financeira em sua matrícula no valor total de *R$ {VALOR_TOTAL}*, referente a *{REFERENCIA}*. Temos uma oportunidade de negociação para regularizar hoje, conforme as condições abaixo:
+
+✅ *Opção {N} - PIX:* Por R$ {PIX_VALOR} (com desconto extra). Vencimento em 24h.
+
+📄 *Opção {N} - Boleto à Vista:* Por R$ {BOLETO_VISTA_VALOR}.
+
+💳 *Opção {N} - Cartão de Crédito:* até {CARTAO_PARCELAS}x de R$ {CARTAO_VALOR}.
+
+📄 *Opção {N} - Boleto Parcelado:* Entrada de R$ {BOLETO_ENTRADA_VALOR} + {BOLETO_PARC_QTD} parcela de R$ {BOLETO_PARC_VALOR}.
+
+Vencimento das propostas: *{VENCIMENTO}*`;
+
+                const rawTemplate = (customTemplate && typeof customTemplate === 'string' && customTemplate.trim()) 
+                    ? customTemplate 
+                    : DEFAULT_TEMPLATE;
 
                 let optCount = 1;
-                if (has('pix')) {
-                    msg += `✅ *Opção ${optCount} - PIX:* Por R$ ${v('pix')} (com desconto extra). Vencimento em 24h.\n\n`;
-                    optCount++;
+                const lines = rawTemplate.split('\n');
+                const resultLines = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+
+                    // Checagem de omissão: se a linha é estritamente de uma opção que não foi preenchida na proposta
+                    const hasPixTag = line.includes('{PIX_VALOR}') || line.includes('[PIX_VALOR]');
+                    const hasBoletoVistaTag = line.includes('{BOLETO_VISTA_VALOR}') || line.includes('[BOLETO_VISTA_VALOR]');
+                    const hasCartaoTag = line.includes('{CARTAO_VALOR}') || line.includes('[CARTAO_VALOR]');
+                    const hasBoletoParcTag = line.includes('{BOLETO_ENTRADA_VALOR}') || line.includes('[BOLETO_ENTRADA_VALOR]') || line.includes('{BOLETO_PARC_VALOR}') || line.includes('[BOLETO_PARC_VALOR]');
+
+                    if (hasPixTag && !has('pix') && !hasBoletoVistaTag && !hasCartaoTag && !hasBoletoParcTag) continue;
+                    if (hasBoletoVistaTag && !has('boleto_vista') && !hasPixTag && !hasCartaoTag && !hasBoletoParcTag) continue;
+                    if (hasCartaoTag && !has('cartao_valor') && !hasPixTag && !hasBoletoVistaTag && !hasBoletoParcTag) continue;
+                    if (hasBoletoParcTag && !has('boleto_entrada') && !has('boleto_parc_valor') && !hasPixTag && !hasBoletoVistaTag && !hasCartaoTag) continue;
+
+                    // Substituir número sequencial da opção
+                    if (line.includes('{N}') || line.includes('[N]')) {
+                        line = line.replace(/\{N\}|\[N\]/g, optCount++);
+                    }
+
+                    // 1. Substituição PIX
+                    if (hasPixTag && has('pix')) {
+                        line = line.replace(/\{PIX_VALOR\}|\[PIX_VALOR\]/g, v('pix'));
+                    }
+
+                    // 2. Substituição Boleto à Vista
+                    if (hasBoletoVistaTag && has('boleto_vista')) {
+                        line = line.replace(/\{BOLETO_VISTA_VALOR\}|\[BOLETO_VISTA_VALOR\]/g, v('boleto_vista'));
+                    }
+
+                    // 3. Substituição Cartão de Crédito
+                    if (hasCartaoTag && has('cartao_valor')) {
+                        const qtd = v('cartao_parcelas') || '1';
+                        line = line.replace(/\{CARTAO_PARCELAS\}|\[CARTAO_PARCELAS\]/g, qtd);
+                        line = line.replace(/\{CARTAO_VALOR\}|\[CARTAO_VALOR\]/g, v('cartao_valor'));
+                    }
+
+                    // 4. Substituição Boleto Parcelado
+                    if (hasBoletoParcTag) {
+                        const fQtd = v('boleto_parc_qtd') || '1';
+                        if (!has('boleto_entrada')) {
+                            line = line.replace(/Entrada de R\$\s*\{BOLETO_ENTRADA_VALOR\}\s*\+\s*/gi, '')
+                                       .replace(/Entrada de R\$\s*\[BOLETO_ENTRADA_VALOR\]\s*\+\s*/gi, '');
+                        } else {
+                            line = line.replace(/\{BOLETO_ENTRADA_VALOR\}|\[BOLETO_ENTRADA_VALOR\]/g, v('boleto_entrada'));
+                        }
+
+                        if (!has('boleto_parc_valor')) {
+                            line = line.replace(/\s*\+\s*\{BOLETO_PARC_QTD\}\s*parcelas?\s*de\s*R\$\s*\{BOLETO_PARC_VALOR\}/gi, '')
+                                       .replace(/\s*\+\s*\[BOLETO_PARC_QTD\]\s*parcelas?\s*de\s*R\$\s*\[BOLETO_PARC_VALOR\]/gi, '');
+                        } else {
+                            line = line.replace(/\{BOLETO_PARC_QTD\}|\[BOLETO_PARC_QTD\]/g, fQtd);
+                            line = line.replace(/\{BOLETO_PARC_VALOR\}|\[BOLETO_PARC_VALOR\]/g, v('boleto_parc_valor'));
+                        }
+                    }
+
+                    // Substituir Valor Total
+                    line = line.replace(/\{VALOR_TOTAL\}|\[VALOR_TOTAL\]/g, v('valor_total'));
+
+                    // Substituir Referência
+                    if (line.includes('{REFERENCIA}') || line.includes('[REFERENCIA]')) {
+                        if (has('referencia')) {
+                            if (!autoReferencia) {
+                                line = line.replace(/referente a\s*\*\{REFERENCIA\}\*/gi, `*${v('referencia')}*`)
+                                           .replace(/referente a\s*\*\[REFERENCIA\]\*/gi, `*${v('referencia')}*`);
+                            }
+                            line = line.replace(/\{REFERENCIA\}|\[REFERENCIA\]/g, v('referencia'));
+                        } else {
+                            line = line.replace(/,\s*referente a\s*\*\{REFERENCIA\}\*/gi, '')
+                                       .replace(/,\s*referente a\s*\*\[REFERENCIA\]\*/gi, '')
+                                       .replace(/,\s*\*\{REFERENCIA\}\*/gi, '')
+                                       .replace(/,\s*\*\[REFERENCIA\]\*/gi, '')
+                                       .replace(/\{REFERENCIA\}|\[REFERENCIA\]/g, '');
+                        }
+                    }
+
+                    // Substituir Vencimento
+                    line = line.replace(/\{VENCIMENTO\}|\[VENCIMENTO\]/g, v('vencimento'));
+
+                    resultLines.push(line);
                 }
-                if (has('boleto_vista')) {
-                    msg += `📄 *Opção ${optCount} - Boleto à Vista:* Por R$ ${v('boleto_vista')}.\n\n`;
-                    optCount++;
-                }
-                if (has('cartao_valor')) {
-                    const qtd = v('cartao_parcelas') || '1';
-                    msg += `💳 *Opção ${optCount} - Cartão de Crédito:* ${qtd}x de R$ ${v('cartao_valor')}.\n\n`;
-                    optCount++;
-                }
-                if (has('boleto_entrada') || has('boleto_parc_valor')) {
-                    const fQtd = v('boleto_parc_qtd') || '1';
-                    const lbl = fQtd === '1' ? 'parcela' : 'parcelas';
-                    let txtOp = `📄 *Opção ${optCount} - Boleto Parcelado:* `;
-                    if (has('boleto_entrada')) txtOp += `Entrada de R$ ${v('boleto_entrada')}`;
-                    if (has('boleto_entrada') && has('boleto_parc_valor')) txtOp += ` + `;
-                    if (has('boleto_parc_valor')) txtOp += `${fQtd} ${lbl} de R$ ${v('boleto_parc_valor')}`;
-                    txtOp += `.\n\n`;
-                    msg += txtOp;
-                    optCount++;
-                }
-                msg += `Vencimento das propostas: *${v('vencimento')}*`;
-                return msg;
+
+                return resultLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
             }
 
             // Proposta selecionada para preview

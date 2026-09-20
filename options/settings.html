@@ -165,6 +165,51 @@
 
                 <div class="card">
                     <h4>Geração de Propostas</h4>
+
+                    <!-- Editor de Texto do Modelo de Proposta -->
+                    <div class="template-editor-section" style="margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div>
+                                <span style="font-size: 14px; font-weight: 600; color: var(--text-main); display: block;">Texto Padrão da Proposta</span>
+                                <small style="font-size: 11px; color: var(--text-muted);">
+                                    Personalize a mensagem oficial. As <strong>caixas de variáveis</strong> ({VALOR_TOTAL}, {PIX_VALOR}, etc.) serão preenchidas com os valores da negociação.
+                                </small>
+                            </div>
+                            <button type="button" class="btn btn-secondary" id="btn-reset-proposal-template" style="padding: 4px 10px; font-size: 11px; flex-shrink: 0;" title="Restaurar o modelo original de fábrica">
+                                🔄 Restaurar Padrão
+                            </button>
+                        </div>
+
+                        <!-- Barra de Caixas de Variáveis -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 8px 0;">
+                            <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); align-self: center; margin-right: 2px;">Caixas Fixas:</span>
+                            <button type="button" class="chip-btn" data-tag="{VALOR_TOTAL}" title="Valor Total da Dívida">Total</button>
+                            <button type="button" class="chip-btn" data-tag="{REFERENCIA}" title="Referência (Mês/Ano)">Referência</button>
+                            <button type="button" class="chip-btn" data-tag="{N}" title="Número da Opção (1, 2, 3...)">Nº Opção</button>
+                            <button type="button" class="chip-btn" data-tag="{PIX_VALOR}" title="Valor da Opção PIX">Valor PIX</button>
+                            <button type="button" class="chip-btn" data-tag="{BOLETO_VISTA_VALOR}" title="Valor do Boleto à Vista">Boleto Vista</button>
+                            <button type="button" class="chip-btn" data-tag="{CARTAO_PARCELAS}" title="Quantidade de parcelas no Cartão">Qtd Cartão</button>
+                            <button type="button" class="chip-btn" data-tag="{CARTAO_VALOR}" title="Valor de cada parcela no Cartão">Valor Cartão</button>
+                            <button type="button" class="chip-btn" data-tag="{BOLETO_ENTRADA_VALOR}" title="Entrada do Boleto Parcelado">Entrada Boleto</button>
+                            <button type="button" class="chip-btn" data-tag="{BOLETO_PARC_QTD}" title="Quantidade de parcelas do Boleto">Qtd Parc. Boleto</button>
+                            <button type="button" class="chip-btn" data-tag="{BOLETO_PARC_VALOR}" title="Valor da parcela do Boleto">Valor Parc. Boleto</button>
+                            <button type="button" class="chip-btn" data-tag="{VENCIMENTO}" title="Data de Vencimento da Proposta">Vencimento</button>
+                        </div>
+
+                        <!-- Editor Textarea -->
+                        <textarea id="opt-proposal-template" rows="11" style="width: 100%; font-family: monospace; font-size: 12px; line-height: 1.5; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main); color: var(--text-main); resize: vertical; box-sizing: border-box;" placeholder="Digite o modelo de proposta..."></textarea>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span id="template-save-status" style="font-size: 11px; color: #38a169; font-weight: 600;"></span>
+                            <button type="button" id="btn-toggle-preview" style="background: none; border: none; color: var(--primary); font-size: 11px; cursor: pointer; text-decoration: underline;">
+                                👁️ Pré-visualização com dados de exemplo
+                            </button>
+                        </div>
+
+                        <!-- Pré-visualização com dados de exemplo -->
+                        <div id="template-preview-box" style="display: none; margin-top: 10px; padding: 12px; background: #f7fafc; border: 1px dashed var(--primary); border-radius: 8px; font-size: 12px; white-space: pre-wrap; color: var(--text-main); line-height: 1.45;"></div>
+                    </div>
+
                     <div class="toggle-row">
                         <div class="toggle-label">
                             <span>📝 Inserir "referente a" automaticamente</span>

@@ -204,6 +204,112 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) el.addEventListener('change', savePanelSections);
     }
 
+    // --- SUB-SEÇÃO: EDITOR DE TEXTO DA PROPOSTA ---
+    const DEFAULT_PROPOSAL_TEMPLATE = `Consta uma pendência financeira em sua matrícula no valor total de *R$ {VALOR_TOTAL}*, referente a *{REFERENCIA}*. Temos uma oportunidade de negociação para regularizar hoje, conforme as condições abaixo:
+
+✅ *Opção {N} - PIX:* Por R$ {PIX_VALOR} (com desconto extra). Vencimento em 24h.
+
+📄 *Opção {N} - Boleto à Vista:* Por R$ {BOLETO_VISTA_VALOR}.
+
+💳 *Opção {N} - Cartão de Crédito:* até {CARTAO_PARCELAS}x de R$ {CARTAO_VALOR}.
+
+📄 *Opção {N} - Boleto Parcelado:* Entrada de R$ {BOLETO_ENTRADA_VALOR} + {BOLETO_PARC_QTD} parcela de R$ {BOLETO_PARC_VALOR}.
+
+Vencimento das propostas: *{VENCIMENTO}*`;
+
+    const txtTemplate = document.getElementById('opt-proposal-template');
+    const btnResetTemplate = document.getElementById('btn-reset-proposal-template');
+    const lblSaveStatus = document.getElementById('template-save-status');
+    const btnTogglePreview = document.getElementById('btn-toggle-preview');
+    const previewBox = document.getElementById('template-preview-box');
+
+    if (txtTemplate) {
+        // Carregar template salvo ou usar padrão
+        const templateData = await chrome.storage.local.get('fd_proposal_template');
+        txtTemplate.value = templateData.fd_proposal_template || DEFAULT_PROPOSAL_TEMPLATE;
+
+        const updatePreview = () => {
+            if (!previewBox || previewBox.style.display === 'none') return;
+            const sample = {
+                '{VALOR_TOTAL}': '0,00',
+                '{REFERENCIA}': 'jan/2026',
+                '{PIX_VALOR}': '0,00',
+                '{BOLETO_VISTA_VALOR}': '0,00',
+                '{CARTAO_PARCELAS}': '0',
+                '{CARTAO_VALOR}': '0,00',
+                '{BOLETO_ENTRADA_VALOR}': '0,00',
+                '{BOLETO_PARC_QTD}': '1',
+                '{BOLETO_PARC_VALOR}': '0,00',
+                '{VENCIMENTO}': '23/09/2026'
+            };
+            let opt = 1;
+            const lines = (txtTemplate.value || '').split('\n').map(l => {
+                let line = l;
+                if (line.includes('{N}')) line = line.replace(/\{N\}/g, opt++);
+                for (const [k, v] of Object.entries(sample)) {
+                    line = line.split(k).join(v);
+                }
+                return line;
+            });
+            previewBox.textContent = lines.join('\n');
+        };
+
+        // Salvar automaticamente com debounce
+        let tplSaveTimeout = null;
+        txtTemplate.addEventListener('input', () => {
+            clearTimeout(tplSaveTimeout);
+            if (lblSaveStatus) lblSaveStatus.textContent = 'Salvando...';
+            tplSaveTimeout = setTimeout(async () => {
+                await chrome.storage.local.set({ fd_proposal_template: txtTemplate.value });
+                if (lblSaveStatus) {
+                    lblSaveStatus.textContent = 'Salvo ✓';
+                    setTimeout(() => { if (lblSaveStatus) lblSaveStatus.textContent = ''; }, 2000);
+                }
+                updatePreview();
+            }, 400);
+        });
+
+        // Inserção das Caixas de Variáveis ao clicar nos chips
+        document.querySelectorAll('.chip-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tag = btn.getAttribute('data-tag');
+                if (!tag) return;
+                const start = txtTemplate.selectionStart;
+                const end = txtTemplate.selectionEnd;
+                const val = txtTemplate.value;
+                txtTemplate.value = val.substring(0, start) + tag + val.substring(end);
+                txtTemplate.selectionStart = txtTemplate.selectionEnd = start + tag.length;
+                txtTemplate.focus();
+                txtTemplate.dispatchEvent(new Event('input'));
+            });
+        });
+
+        // Restaurar Padrão
+        if (btnResetTemplate) {
+            btnResetTemplate.addEventListener('click', async () => {
+                if (confirm("Deseja restaurar o texto padrão original da proposta?")) {
+                    txtTemplate.value = DEFAULT_PROPOSAL_TEMPLATE;
+                    await chrome.storage.local.remove('fd_proposal_template');
+                    if (lblSaveStatus) {
+                        lblSaveStatus.textContent = 'Padrão restaurado ✓';
+                        setTimeout(() => { if (lblSaveStatus) lblSaveStatus.textContent = ''; }, 2000);
+                    }
+                    updatePreview();
+                }
+            });
+        }
+
+        // Toggle Preview
+        if (btnTogglePreview && previewBox) {
+            btnTogglePreview.addEventListener('click', () => {
+                const isHidden = previewBox.style.display === 'none';
+                previewBox.style.display = isHidden ? 'block' : 'none';
+                btnTogglePreview.textContent = isHidden ? '🙈 Ocultar Pré-visualização' : '👁️ Pré-visualização com dados de exemplo';
+                if (isHidden) updatePreview();
+            });
+        }
+    }
+
     // --- SEÇÃO: SITES ATIVOS ---
     const chkWhatsapp = document.getElementById('site-whatsapp');
     const chkGmail = document.getElementById('site-gmail');
