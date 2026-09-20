@@ -39,7 +39,7 @@ globalThis.FinModule = (function () {
                     width: 260px;
                     background: var(--fd-bg);
                     border-radius: 12px;
-                    z-index: 9999;
+                    z-index: var(--fd-z-panel, 2147483642);
                     box-shadow: var(--fd-shadow-lg);
                     border: 1px solid var(--fd-border);
                     display: none;
@@ -88,7 +88,7 @@ globalThis.FinModule = (function () {
                     width: 100%; height: 100%;
                     background: rgba(255,255,255,0.6);
                     backdrop-filter: blur(5px);
-                    z-index: 100000;
+                    z-index: var(--fd-z-modal, 2147483646);
                     display: none;
                     align-items: center;
                     justify-content: center;
@@ -438,7 +438,7 @@ globalThis.FinModule = (function () {
          * Cria estilos, HTML, event handlers de login, Speed Dial, drag e inputs.
          */
         async function injetarFerramenta() {
-            if (document.getElementById('abrir-painel')) return;
+            if (document.getElementById('painel-financeiro')) return;
 
             // --- Injetar CSS ---
             const styleId = 'estilo-painel-final-v4-2';
@@ -502,13 +502,16 @@ globalThis.FinModule = (function () {
 
             // Z-index: painel financeiro fica na frente ao clicar
             container.addEventListener('mousedown', () => {
-                container.style.zIndex = "10000";
+                container.style.zIndex = "var(--fd-z-active, 2147483645)";
                 const notePanel = document.getElementById('bloco-notas');
-                if (notePanel) notePanel.style.zIndex = "9999";
+                if (notePanel) notePanel.style.zIndex = "var(--fd-z-panel, 2147483642)";
             });
 
             // Preencher vencimento padrão
             document.getElementById('fin-data').value = await getVencimento3DiasUteis();
+
+            // Restaurar rascunho salvo se disponível
+            restoreFinancialDraft(container);
 
             // =============================================================
             // EVENT HANDLERS: LOGIN
@@ -592,6 +595,45 @@ globalThis.FinModule = (function () {
             });
 
             // =============================================================
+            // PERSISTÊNCIA DE RASCUNHO FINANCEIRO
+            // =============================================================
+            const DRAFT_STORAGE_KEY = 'fd_fin_draft';
+            let draftSaveTimeout = null;
+
+            function saveFinancialDraft() {
+                clearTimeout(draftSaveTimeout);
+                draftSaveTimeout = setTimeout(async () => {
+                    try {
+                        const draft = {};
+                        container.querySelectorAll('input').forEach(input => {
+                            if (input.id && input.id !== 'fin-data') {
+                                draft[input.id] = input.value;
+                            }
+                        });
+                        await globalThis.SafeStorage.set(DRAFT_STORAGE_KEY, draft);
+                    } catch (e) {
+                        console.warn('[FlowDesk Fin] Falha ao salvar rascunho financeiro:', e);
+                    }
+                }, 300);
+            }
+
+            async function restoreFinancialDraft(scopeContainer) {
+                try {
+                    const draft = await globalThis.SafeStorage.get(DRAFT_STORAGE_KEY, null);
+                    if (draft && typeof draft === 'object') {
+                        for (const [id, val] of Object.entries(draft)) {
+                            const el = scopeContainer.querySelector('#' + id);
+                            if (el && val !== undefined && val !== null && val !== '') {
+                                el.value = val;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[FlowDesk Fin] Falha ao restaurar rascunho financeiro:', e);
+                }
+            }
+
+            // =============================================================
             // EVENT HANDLERS: INPUTS DO PAINEL FINANCEIRO
             // =============================================================
 
@@ -601,6 +643,9 @@ globalThis.FinModule = (function () {
                 input.setAttribute('autocomplete', 'off');
                 input.setAttribute('spellcheck', 'false');
                 input.addEventListener('focus', function () { this.select(); });
+
+                // Salvar rascunho a cada alteração
+                input.addEventListener('input', saveFinancialDraft);
 
                 // Máscara monetária: aplicada apenas em campos de valor (exceto number, data, ref e matrícula)
                 if (input.type !== 'number' && input.id !== 'fin-data' && input.id !== 'fin-ref' && input.id !== 'fin-matricula') {
@@ -620,6 +665,7 @@ globalThis.FinModule = (function () {
                                 maximumFractionDigits: 2
                             });
                         }
+                        saveFinancialDraft();
                     });
                 }
 
@@ -632,26 +678,30 @@ globalThis.FinModule = (function () {
             // Limpeza automática de campos dependentes
             document.getElementById('fin-cartao-val').addEventListener('input', (e) => {
                 if (e.target.value === '') document.getElementById('fin-cartao-qtd').value = '';
+                saveFinancialDraft();
             });
             document.getElementById('fin-bol-ent').addEventListener('input', (e) => {
                 if (e.target.value === '') {
                     document.getElementById('fin-bol-parc').value = '';
                     document.getElementById('fin-bol-qtd').value = '';
                 }
+                saveFinancialDraft();
             });
             document.getElementById('fin-bol-parc').addEventListener('input', (e) => {
                 if (e.target.value === '') document.getElementById('fin-bol-qtd').value = '';
+                saveFinancialDraft();
             });
 
             // =============================================================
             // EVENT HANDLERS: LIMPAR / FECHAR / GERAR PROPOSTA
             // =============================================================
 
-            /** Limpa todos os campos (exceto data de vencimento) */
-            document.getElementById('btn-limpar-fin').onclick = () => {
+            /** Limpa todos os campos (exceto data de vencimento) e apaga o rascunho */
+            document.getElementById('btn-limpar-fin').onclick = async () => {
                 inputs.forEach(input => {
                     if (input.id !== 'fin-data') input.value = '';
                 });
+                await globalThis.SafeStorage.set(DRAFT_STORAGE_KEY, null);
                 document.getElementById('fin-total').focus();
             };
 
@@ -1030,7 +1080,7 @@ globalThis.FinModule = (function () {
             init: async () => {
                 isDarkMode = await globalThis.SafeStorage.get(globalThis.CONFIG_APP.STORAGE_THEME, false);
                 setInterval(() => {
-                    if (!document.getElementById('abrir-painel')) injetarFerramenta();
+                    if (!document.getElementById('painel-financeiro')) injetarFerramenta();
                 }, 2000);
                 injetarFerramenta();
 

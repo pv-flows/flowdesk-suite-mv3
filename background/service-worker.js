@@ -115,6 +115,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 });
 
+// ─── COMANDOS DE ATALHO DE TECLADO ───────────────────────────────────────────
 chrome.commands.onCommand.addListener(async (command) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
@@ -122,52 +123,6 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
 });
 
-// ─── INJEÇÃO PROGRAMÁTICA PARA DOMÍNIOS CUSTOMIZADOS ────────────────────────
-// Sites padrão já são cobertos pelo content_scripts do manifest.
-// Domínios adicionados pelo usuário nas configurações são injetados aqui.
-const MANIFEST_SITES = ['conversas.hyperflow.global', 'web.whatsapp.com', 'mail.google.com'];
+// A injeção em todas as páginas e domínios customizados é orquestrada diretamente
+// pelo content_scripts do manifest.json com filtro inteligente por domínio em runtime.
 
-const CONTENT_SCRIPTS_FILES = [
-    'content/config.js',
-    'content/storage.js',
-    'content/utils.js',
-    'content/icons/lucide.js',
-    'content/global-state.js',
-    'content/services/toast.js',
-    'content/services/modal.js',
-    'content/services/holiday.js',
-    'content/services/groq.js',
-    'content/modules/auth.js',
-    'content/modules/fin-module.js',
-    'content/modules/notes-module.js',
-    'content/modules/speed-dial.js',
-    'content/main.js'
-];
-
-const CONTENT_CSS_FILES = [
-    'content/styles/tokens.css'
-];
-
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status !== 'complete' || !tab.url) return;
-
-    let hostname;
-    try { hostname = new URL(tab.url).hostname; } catch { return; }
-
-    // Ignorar sites que já são cobertos pelo manifest
-    if (MANIFEST_SITES.includes(hostname)) return;
-
-    // Verificar se o hostname está nos perfis customizados
-    const data = await chrome.storage.local.get('SITE_PROFILES');
-    const profiles = data.SITE_PROFILES || {};
-    if (!profiles[hostname]) return;
-
-    // Injetar scripts (idempotente: os scripts usam guards como !globalThis.X)
-    try {
-        await chrome.scripting.insertCSS({ target: { tabId }, files: CONTENT_CSS_FILES });
-        await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPTS_FILES });
-    } catch (err) {
-        // Silenciar erros em páginas protegidas (chrome://, about://, etc.)
-        console.log('[FlowDesk] Injeção ignorada para:', hostname, err.message);
-    }
-});

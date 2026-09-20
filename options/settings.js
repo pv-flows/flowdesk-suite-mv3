@@ -213,15 +213,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let siteProfiles = {};
     const siteData = await chrome.storage.local.get('SITE_PROFILES');
-    if (siteData.SITE_PROFILES) {
+    if (siteData.SITE_PROFILES && typeof siteData.SITE_PROFILES === 'object') {
         siteProfiles = siteData.SITE_PROFILES;
     } else {
-        // Defaults
+        // Defaults seguros
         siteProfiles = {
             'conversas.hyperflow.global': { enableFinModule: true, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: true },
-            'web.whatsapp.com': { enableFinModule: false, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: false },
-            'mail.google.com': { enableFinModule: false, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: false }
+            'web.whatsapp.com': { enableFinModule: true, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: false },
+            'mail.google.com': { enableFinModule: true, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: false }
         };
+        await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
     }
 
     chkWhatsapp.checked = !!siteProfiles['web.whatsapp.com'];
@@ -231,21 +232,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         customSitesList.innerHTML = '';
         const defaultSites = ['conversas.hyperflow.global', 'web.whatsapp.com', 'mail.google.com', 'default'];
         
-        Object.keys(siteProfiles).forEach(site => {
-            if (!defaultSites.includes(site)) {
-                const div = document.createElement('div');
-                div.className = 'site-toggle';
-                div.innerHTML = `
-                    <span>${site}</span>
-                    <button class="btn btn-danger" data-site="${site}" style="padding: 4px 8px; font-size: 11px;">Remover</button>
-                `;
-                div.querySelector('button').onclick = async () => {
-                    delete siteProfiles[site];
-                    await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
-                    renderCustomSites();
-                };
-                customSitesList.appendChild(div);
-            }
+        const customKeys = Object.keys(siteProfiles).filter(site => !defaultSites.includes(site));
+        if (customKeys.length === 0) {
+            customSitesList.innerHTML = '<p style="color: #a0aec0; font-size: 12px; margin-top: 5px;">Nenhum domínio customizado cadastrado.</p>';
+            return;
+        }
+
+        customKeys.forEach(site => {
+            const prof = siteProfiles[site] || { enableFinModule: true, enableNotesModule: true };
+            const div = document.createElement('div');
+            div.className = 'site-toggle';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.justifyContent = 'space-between';
+            div.style.padding = '8px 10px';
+            div.style.marginBottom = '6px';
+            div.style.background = 'var(--fd-bg, #fff)';
+            div.style.border = '1px solid #e2e8f0';
+            div.style.borderRadius = '6px';
+
+            div.innerHTML = `
+                <span style="font-weight: 600; font-size: 13px; word-break: break-all; margin-right: 8px;">${site}</span>
+                <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" class="chk-custom-fin" ${prof.enableFinModule !== false ? 'checked' : ''}>
+                        <span>Fin</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" class="chk-custom-notes" ${prof.enableNotesModule !== false ? 'checked' : ''}>
+                        <span>Notas</span>
+                    </label>
+                    <button class="btn btn-danger btn-del-custom" data-site="${site}" style="padding: 3px 8px; font-size: 11px; margin-left: 4px;">Remover</button>
+                </div>
+            `;
+
+            const chkFin = div.querySelector('.chk-custom-fin');
+            const chkNotes = div.querySelector('.chk-custom-notes');
+            const btnDel = div.querySelector('.btn-del-custom');
+
+            chkFin.onchange = async () => {
+                siteProfiles[site].enableFinModule = chkFin.checked;
+                await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
+            };
+
+            chkNotes.onchange = async () => {
+                siteProfiles[site].enableNotesModule = chkNotes.checked;
+                await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
+            };
+
+            btnDel.onclick = async () => {
+                delete siteProfiles[site];
+                await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
+                renderCustomSites();
+            };
+
+            customSitesList.appendChild(div);
         });
     };
 
@@ -263,15 +304,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     chkWhatsapp.addEventListener('change', (e) => saveSiteToggle('web.whatsapp.com', e.target.checked));
     chkGmail.addEventListener('change', (e) => saveSiteToggle('mail.google.com', e.target.checked));
 
-    btnAddSite.addEventListener('click', async () => {
+    const handleAddNewSite = async () => {
         let val = inputNewSite.value.trim();
         if (!val) return;
-        val = val.replace(/^https?:\/\//, '').split('/')[0];
-        
-        siteProfiles[val] = { enableFinModule: false, enableNotesModule: true, enableMacroSuggester: true, enableTelemetry: false };
+
+        // Sanitização profunda
+        val = val.replace(/^https?:\/\//i, '');
+        val = val.split('/')[0].split('?')[0].split('#')[0];
+        val = val.split(':')[0]; // remove porta (ex: :8080)
+        val = val.toLowerCase().trim();
+
+        if (!val) return;
+
+        // Habilita painéis Financeiro e Notas por padrão para o novo site
+        siteProfiles[val] = {
+            enableFinModule: true,
+            enableNotesModule: true,
+            enableMacroSuggester: true,
+            enableTelemetry: false
+        };
+
         await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
         inputNewSite.value = '';
         renderCustomSites();
+    };
+
+    btnAddSite.addEventListener('click', handleAddNewSite);
+    inputNewSite.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddNewSite();
+        }
     });
 
     // --- SEÇÃO: BACKUP ---

@@ -14,7 +14,7 @@ const SpeedDial = (function () {
                     position: fixed;
                     bottom: 80px;
                     left: 15px;
-                    z-index: 9999;
+                    z-index: var(--fd-z-base, 2147483640);
                     background: var(--fd-bg);
                     color: var(--fd-text);
                     border: 1px solid var(--fd-border);
@@ -78,6 +78,8 @@ const SpeedDial = (function () {
                 #abrir-painel.sd-open .sd-action { opacity: 1; pointer-events: auto; transform: scale(1); }
                 #abrir-painel.sd-open #btn-sd-fin { transform: translateY(-60px); }
                 #abrir-painel.sd-open #btn-sd-note { transform: translateY(-110px); }
+                #abrir-painel.sd-open.fin-only #btn-sd-fin { transform: translateY(-60px); }
+                #abrir-painel.sd-open.notes-only #btn-sd-note { transform: translateY(-60px); }
                 #btn-sd-fin { background: var(--fd-primary); }
                 #btn-sd-note { background: #dd6b20; }
                 #btn-sd-note:hover { background: #c05621; }
@@ -87,6 +89,13 @@ const SpeedDial = (function () {
 
     function init() {
         if (document.getElementById('abrir-painel')) return;
+
+        const profile = typeof globalThis.getCurrentProfile === 'function' 
+            ? globalThis.getCurrentProfile() 
+            : { enableFinModule: true, enableNotesModule: true };
+
+        // Se ambos os módulos estiverem desligados, não precisa de Speed Dial
+        if (profile.enableFinModule === false && profile.enableNotesModule === false) return;
 
         // Injetar CSS
         const styleId = 'estilo-speed-dial';
@@ -117,6 +126,16 @@ const SpeedDial = (function () {
         const loginOverlay = document.getElementById('login-overlay');
         const inputNome = document.getElementById('input-login-nome');
 
+        // Ajustar visibilidade conforme perfil do site
+        if (profile.enableFinModule === false && btnSdFin) {
+            btnSdFin.style.display = 'none';
+            btnAbrir.classList.add('notes-only');
+        }
+        if (profile.enableNotesModule === false && btnSdNote) {
+            btnSdNote.style.display = 'none';
+            btnAbrir.classList.add('fin-only');
+        }
+
         // =============================================================
         // EVENT HANDLERS: BOTÕES SPEED DIAL (FINANCEIRO / NOTAS)
         // =============================================================
@@ -126,13 +145,14 @@ const SpeedDial = (function () {
         btnSdFin.onclick = (e) => {
             e.stopPropagation();
             close();
-            if (container && container.style.display === 'flex') {
-                container.style.display = 'none';
-            } else if (container) {
-                container.style.display = 'flex';
-                container.style.zIndex = '10000';
+            const finPanel = document.getElementById('painel-financeiro');
+            if (finPanel && finPanel.style.display === 'flex') {
+                finPanel.style.display = 'none';
+            } else if (finPanel) {
+                finPanel.style.display = 'flex';
+                finPanel.style.zIndex = 'var(--fd-z-active, 2147483645)';
                 const notePanel = document.getElementById('bloco-notas');
-                if (notePanel) notePanel.style.zIndex = '9999';
+                if (notePanel) notePanel.style.zIndex = 'var(--fd-z-panel, 2147483642)';
                 setTimeout(() => {
                     const el = document.getElementById('fin-total');
                     if (el) el.focus();
@@ -151,8 +171,9 @@ const SpeedDial = (function () {
                     blocoContainer.style.display = 'none';
                 } else {
                     blocoContainer.style.display = 'flex';
-                    blocoContainer.style.zIndex = '10000';
-                    if (container) container.style.zIndex = '9999';
+                    blocoContainer.style.zIndex = 'var(--fd-z-active, 2147483645)';
+                    const finPanel = document.getElementById('painel-financeiro');
+                    if (finPanel) finPanel.style.zIndex = 'var(--fd-z-panel, 2147483642)';
                     const areaTexto = document.getElementById('area-texto');
                     if (areaTexto) areaTexto.focus();
                 }

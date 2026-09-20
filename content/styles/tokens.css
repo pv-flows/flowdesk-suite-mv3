@@ -1,5 +1,5 @@
 /* FlowDesk MV3 — tokens.css
-   Sprint 3.3 — Design tokens CSS */
+   Sprint 3.3 — Design tokens CSS + Resiliência de Camadas e Reset Scoped */
 
 :root {
     /* Cores */
@@ -29,6 +29,13 @@
     --fd-radius-sm:      4px;
     --fd-shadow:         0 4px 15px rgba(107, 70, 193, 0.15);
     --fd-shadow-lg:      0 8px 30px rgba(0, 0, 0, 0.12);
+
+    /* Hierarquia de Camadas e Z-Index Anti-Sobreposição */
+    --fd-z-base:         2147483640;
+    --fd-z-panel:        2147483642;
+    --fd-z-active:       2147483645;
+    --fd-z-modal:        2147483646;
+    --fd-z-toast:        2147483647;
 }
 
 [data-fd-theme="dark"] {
@@ -39,13 +46,14 @@
     --fd-text-muted:     #a0aec0;
 }
 
-/* Blindagem: redeclara tokens nos containers para impedir sobrescrita pela :root */
+/* Blindagem: redeclara tokens nos containers para impedir sobrescrita pela :root da página */
 #painel-financeiro,
 #bloco-notas,
 #abrir-painel,
 #login-overlay,
 #modal-confirm-global,
-#macro-suggestion-panel {
+#macro-suggestion-panel,
+#flowdesk-toast-container {
     --fd-primary:        #6b46c1;
     --fd-primary-hover:  #553c9a;
     --fd-bg:             #ffffff;
@@ -55,11 +63,33 @@
     --fd-text-muted:     #718096;
     --fd-danger:         #e53e3e;
     --fd-success:        #38a169;
-    --fd-font-family:     'Inter', system-ui, -apple-system, sans-serif;
+    --fd-font-family:    'Inter', system-ui, -apple-system, sans-serif;
     --fd-radius:         8px;
     --fd-radius-sm:      4px;
     --fd-shadow:         0 4px 15px rgba(107, 70, 193, 0.15);
     --fd-shadow-lg:      0 8px 30px rgba(0, 0, 0, 0.12);
+    --fd-z-base:         2147483640;
+    --fd-z-panel:        2147483642;
+    --fd-z-active:       2147483645;
+    --fd-z-modal:        2147483646;
+    --fd-z-toast:        2147483647;
+
+    /* Scoped Reset — Proteção contra regras globais destrutivas da intranet */
+    box-sizing: border-box !important;
+    line-height: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+#painel-financeiro *,
+#bloco-notas *,
+#abrir-painel *,
+#login-overlay *,
+#modal-confirm-global *,
+#macro-suggestion-panel *,
+#flowdesk-toast-container * {
+    box-sizing: border-box !important;
 }
 
 #painel-financeiro[class*="dark-mode"],

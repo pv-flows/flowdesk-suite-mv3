@@ -509,7 +509,7 @@ globalThis.NotesModule = (function () {
 
                 #bloco-notas {
                     position: fixed;
-                    z-index: 9999;
+                    z-index: var(--fd-z-panel, 2147483642);
                     display: none;
                     flex-direction: column;
                     overflow: hidden;
@@ -971,9 +971,9 @@ globalThis.NotesModule = (function () {
 
             // Z-index: bloco de notas fica na frente ao clicar
             container.addEventListener('mousedown', () => {
-                container.style.zIndex = "10000";
+                container.style.zIndex = "var(--fd-z-active, 2147483645)";
                 const finPanel = document.getElementById('painel-financeiro');
-                if (finPanel) finPanel.style.zIndex = "9999";
+                if (finPanel) finPanel.style.zIndex = "var(--fd-z-panel, 2147483642)";
             });
 
             // =============================================================
@@ -1696,6 +1696,15 @@ globalThis.NotesModule = (function () {
                 setInterval(checkReminders, 3000);
                 setTimeout(checkReminders, 1000);
                 document.addEventListener('flowdeskRefreshNotifications', checkReminders);
+
+                const ensureInjected = () => {
+                    if (document.body && !document.getElementById(CONFIG_APP.DOM_ID.CONTAINER)) {
+                        injetarBloco();
+                    }
+                };
+
+                setInterval(ensureInjected, 2500);
+
                 if (document.body) {
                     injetarBloco();
                 } else {

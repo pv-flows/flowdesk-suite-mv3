@@ -151,7 +151,52 @@ function injectStyles(cssFile) {
     (document.head || document.documentElement).appendChild(link);
 }
 
+let siteListenerConfigured = false;
+
+/**
+ * Escuta adições ou remoções de domínios no options em tempo real para reagir na aba atual.
+ */
+function setupStorageSiteListener() {
+    if (siteListenerConfigured) return;
+    siteListenerConfigured = true;
+
+    chrome.storage.onChanged.addListener(async (changes, area) => {
+        if (area === 'local' && changes.SITE_PROFILES) {
+            const updatedProfile = await globalThis.resolveSiteProfile();
+            if (updatedProfile && !document.getElementById('abrir-painel')) {
+                console.log('[FlowDesk] Site ativado em tempo real! Inicializando...');
+                initApp();
+            } else if (!updatedProfile && document.getElementById('abrir-painel')) {
+                console.log('[FlowDesk] Site desativado. Removendo interface...');
+                document.getElementById('abrir-painel')?.remove();
+                document.getElementById('painel-financeiro')?.remove();
+                document.getElementById('bloco-notas')?.remove();
+                document.getElementById('login-overlay')?.remove();
+            }
+        }
+    });
+}
+
 const initApp = async () => {
+    // 1. Guarda de Frame: nunca injeta em iframes internos da intranet
+    if (window !== window.top) {
+        return;
+    }
+
+    // 2. Guarda de Conteúdo: nunca injeta em XML, PDF viewers ou imagens
+    if (document.contentType && !document.contentType.includes('html')) {
+        return;
+    }
+
+    setupStorageSiteListener();
+
+    // 3. Resolução assíncrona do perfil de ativação do site
+    const profile = await globalThis.resolveSiteProfile();
+    if (!profile) {
+        // Site não ativado nas configurações: sai silenciosamente sem injetar nada no DOM
+        return;
+    }
+
     injectStyles('tokens.css');
 
     // ─── TEMA E ESCALA GLOBAIS ───
@@ -187,10 +232,9 @@ const initApp = async () => {
     });
     // ───────────────────────────
 
-    const profile = globalThis.getCurrentProfile();
-    if (profile.enableFinModule) await FinModule.init();
+    if (profile.enableFinModule !== false) await FinModule.init();
     SpeedDial.init();
-    if (profile.enableNotesModule) await NotesModule.init();
+    if (profile.enableNotesModule !== false) await NotesModule.init();
     window.addEventListener('resize', clampAllElementsToViewport);
 
     // =========================================================================
@@ -205,9 +249,9 @@ const initApp = async () => {
                 p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
                 if (p.style.display === 'flex') {
                     document.getElementById('fin-total')?.focus();
-                    p.style.zIndex = "10000";
+                    p.style.zIndex = "var(--fd-z-active, 2147483645)";
                     const n = document.getElementById('bloco-notas');
-                    if (n) n.style.zIndex = "9999";
+                    if (n) n.style.zIndex = "var(--fd-z-panel, 2147483642)";
                 }
             }
         }
@@ -219,28 +263,44 @@ const initApp = async () => {
                 b.style.display = b.style.display === 'flex' ? 'none' : 'flex';
                 if (b.style.display === 'flex') {
                     document.getElementById('area-texto')?.focus();
-                    b.style.zIndex = "10000";
+                    b.style.zIndex = "var(--fd-z-active, 2147483645)";
                     const p = document.getElementById('painel-financeiro');
-                    if (p) p.style.zIndex = "9999";
+                    if (p) p.style.zIndex = "var(--fd-z-panel, 2147483642)";
                 }
             }
         }
     });
 
     // =========================================================================
-    // RE-INJEÇÃO RESILIENTE PARA SPAs
-    // Hyperflow React desmonta o DOM em navegações internas.
-    // O observer detecta a remoção do FAB e re-executa initApp().
+    // RE-INJEÇÃO RESILIENTE PARA SPAs (React / Angular / Vue / Intranets)
+    // Monitora desmontagem do DOM e navegações internas de histórico.
     // =========================================================================
-    const routeObserver = new MutationObserver(debounce(() => {
-        if (!document.getElementById('abrir-painel')) {
-            console.log('[FlowDesk] DOM reset detectado — reinjetando...');
+    const checkAndRestoreDOM = debounce(async () => {
+        const activeProf = await globalThis.resolveSiteProfile();
+        if (!activeProf) return;
+
+        let needsReinject = false;
+        if (!document.getElementById('abrir-painel')) needsReinject = true;
+        if (activeProf.enableFinModule !== false && !document.getElementById('painel-financeiro')) needsReinject = true;
+        if (activeProf.enableNotesModule !== false && !document.getElementById('bloco-notas')) needsReinject = true;
+
+        if (needsReinject) {
+            console.log('[FlowDesk] SPA DOM reset detectado — reinjetando componentes...');
             initApp();
         }
-    }, 800));
+    }, 600);
+
+    const routeObserver = new MutationObserver(checkAndRestoreDOM);
     if (document.body) {
-        routeObserver.observe(document.body, { childList: true, subtree: false });
+        routeObserver.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.body) routeObserver.observe(document.body, { childList: true, subtree: true });
+        });
     }
+
+    window.addEventListener('popstate', checkAndRestoreDOM);
+    window.addEventListener('hashchange', checkAndRestoreDOM);
 };
 
 if (document.readyState === 'loading') {
