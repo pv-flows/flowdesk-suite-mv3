@@ -34,8 +34,6 @@ globalThis.FinModule = (function () {
                 /* --- Container Principal --- */
                 #painel-financeiro {
                     position: fixed;
-                    top: 10px;
-                    right: 10px;
                     width: 260px;
                     background: var(--fd-bg);
                     border-radius: 12px;
@@ -469,6 +467,12 @@ globalThis.FinModule = (function () {
             container.setAttribute('data-darkreader-mode', '0');
             container.style.colorScheme = isDarkMode ? 'dark' : 'light';
 
+            // --- Aplicar posição configurada ---
+            const posDataFin = await SafeStorage.get('fd_panel_positions', { fin: 'top-right' });
+            if (globalThis.applyPanelPosition) {
+                globalThis.applyPanelPosition(container, posDataFin?.fin || 'top-right');
+            }
+
             document.body.appendChild(container);
 
             // --- Aplicar visibilidade das seções configuráveis ---
@@ -495,8 +499,16 @@ globalThis.FinModule = (function () {
 
             // Escutar mudanças em tempo real (ex: operador alterou nas configurações com o painel aberto)
             chrome.storage.onChanged.addListener((changes, area) => {
-                if (area === 'local' && changes.fd_panel_sections) {
-                    applyPanelSections(changes.fd_panel_sections.newValue || {});
+                if (area === 'local') {
+                    if (changes.fd_panel_sections) {
+                        applyPanelSections(changes.fd_panel_sections.newValue || {});
+                    }
+                    if (changes.fd_panel_positions) {
+                        const newPos = changes.fd_panel_positions.newValue?.fin || 'top-right';
+                        if (globalThis.applyPanelPosition) {
+                            globalThis.applyPanelPosition(container, newPos);
+                        }
+                    }
                 }
             });
 
@@ -820,7 +832,8 @@ globalThis.FinModule = (function () {
                 // Ler configuração de auto_referencia e template customizado
                 const secData = await SafeStorage.get('fd_panel_sections', {});
                 const autoReferencia = secData.auto_referencia !== false; // padrão: true
-                const customTemplate = await SafeStorage.get('fd_proposal_template', null);
+                const tplData = await chrome.storage.local.get('fd_proposal_template');
+                const customTemplate = tplData.fd_proposal_template || null;
 
                 const DEFAULT_TEMPLATE = `Consta uma pendência financeira em sua matrícula no valor total de *R$ {VALOR_TOTAL}*, referente a *{REFERENCIA}*. Temos uma oportunidade de negociação para regularizar hoje, conforme as condições abaixo:
 
@@ -894,6 +907,12 @@ Vencimento das propostas: *{VENCIMENTO}*`;
                         } else {
                             line = line.replace(/\{BOLETO_PARC_QTD\}|\[BOLETO_PARC_QTD\]/g, fQtd);
                             line = line.replace(/\{BOLETO_PARC_VALOR\}|\[BOLETO_PARC_VALOR\]/g, v('boleto_parc_valor'));
+
+                            // Pluralizar "parcela(s)" conforme a quantidade
+                            const numParcelas = parseInt(fQtd, 10);
+                            if (numParcelas > 1) {
+                                line = line.replace(/\bparcela\b/gi, 'parcelas');
+                            }
                         }
                     }
 

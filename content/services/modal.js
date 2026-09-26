@@ -18,7 +18,7 @@ const ModalService = {
         modal.id = 'modal-confirm-global';
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100001; display: none; align-items: center; justify-content: center;
+            z-index: var(--fd-z-modal, 2147483646); display: none; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
             font-family: 'Inter', sans-serif;
             color-scheme: light; isolation: isolate;

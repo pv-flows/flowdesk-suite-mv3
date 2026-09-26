@@ -204,6 +204,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) el.addEventListener('change', savePanelSections);
     }
 
+    // --- POSIÇÃO INICIAL DOS PAINÉIS ---
+    const selectFinPos = document.getElementById('opt-fin-position');
+    const selectNotesPos = document.getElementById('opt-notes-position');
+
+    const posData = await chrome.storage.local.get('fd_panel_positions');
+    const positions = posData.fd_panel_positions || { fin: 'top-right', notes: 'top-left' };
+
+    if (selectFinPos) selectFinPos.value = positions.fin || 'top-right';
+    if (selectNotesPos) selectNotesPos.value = positions.notes || 'top-left';
+
+    const savePanelPositions = async () => {
+        await chrome.storage.local.set({
+            fd_panel_positions: {
+                fin: selectFinPos?.value || 'top-right',
+                notes: selectNotesPos?.value || 'top-left'
+            }
+        });
+    };
+
+    selectFinPos?.addEventListener('change', savePanelPositions);
+    selectNotesPos?.addEventListener('change', savePanelPositions);
+
     // --- SUB-SEÇÃO: EDITOR DE TEXTO DA PROPOSTA ---
     const DEFAULT_PROPOSAL_TEMPLATE = `Consta uma pendência financeira em sua matrícula no valor total de *R$ {VALOR_TOTAL}*, referente a *{REFERENCIA}*. Temos uma oportunidade de negociação para regularizar hoje, conforme as condições abaixo:
 
@@ -422,6 +444,22 @@ Vencimento das propostas: *{VENCIMENTO}*`;
 
         if (!val) return;
 
+        // Solicitar permissão explícita para o domínio
+        const origin = `*://${val}/*`;
+        let granted = false;
+        try {
+            granted = await chrome.permissions.request({ origins: [origin] });
+        } catch (e) {
+            console.warn('[FlowDesk] Falha ao solicitar permissão de host:', e);
+            granted = false;
+        }
+
+        if (!granted) {
+            inputNewSite.style.borderColor = '#e53e3e';
+            setTimeout(() => { inputNewSite.style.borderColor = ''; }, 2000);
+            return;
+        }
+
         // Habilita painéis Financeiro e Notas por padrão para o novo site
         siteProfiles[val] = {
             enableFinModule: true,
@@ -433,6 +471,16 @@ Vencimento das propostas: *{VENCIMENTO}*`;
         await chrome.storage.local.set({ SITE_PROFILES: siteProfiles });
         inputNewSite.value = '';
         renderCustomSites();
+
+        // Injetar nos tabs já abertos do domínio aprovado
+        try {
+            const tabs = await chrome.tabs.query({ url: origin });
+            for (const tab of tabs) {
+                chrome.runtime.sendMessage({ action: 'inject-scripts', tabId: tab.id });
+            }
+        } catch (e) {
+            console.warn('[FlowDesk] Falha ao consultar ou injetar em abas abertas:', e);
+        }
     };
 
     btnAddSite.addEventListener('click', handleAddNewSite);
@@ -451,7 +499,10 @@ Vencimento das propostas: *{VENCIMENTO}*`;
     const btnClearHist = document.getElementById('btn-clear-history');
     const btnFactoryReset = document.getElementById('btn-factory-reset');
 
-    btnResetPos.addEventListener('click', () => {
+    btnResetPos.addEventListener('click', async () => {
+        await chrome.storage.local.remove(['fd_panel_positions', 'hyper_bloco_pos_v2']);
+        if (selectFinPos) selectFinPos.value = 'top-right';
+        if (selectNotesPos) selectNotesPos.value = 'top-left';
         broadcastCmd('resetPositions');
         flashBtn(btnResetPos, '🔄 Resetar Posições dos Painéis', 'Posições Resetadas ✓');
     });

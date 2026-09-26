@@ -941,12 +941,10 @@ globalThis.NotesModule = (function () {
             const container = document.createElement('div');
             container.id = CONFIG_APP.DOM_ID.CONTAINER;
             if (isDarkMode) container.classList.add('dark-mode');
-            container.style.top = '10px';
-            container.style.left = '10px';
             container.style.width = '350px';
             container.style.height = '375px';
 
-            // Restaurar posição salva
+            // Restaurar posição salva por arraste ou aplicar posição configurada
             const savedPos = await SafeStorage.get(CONFIG_APP.STORAGE_POS, null);
             if (savedPos) {
                 if (savedPos.top) container.style.top = savedPos.top;
@@ -955,7 +953,25 @@ globalThis.NotesModule = (function () {
                 if (savedPos.bottom) container.style.bottom = savedPos.bottom;
                 if (savedPos.width) container.style.width = savedPos.width;
                 if (savedPos.height) container.style.height = savedPos.height;
+            } else {
+                const posConfig = await SafeStorage.get('fd_panel_positions', { notes: 'top-left' });
+                if (globalThis.applyPanelPosition) {
+                    globalThis.applyPanelPosition(container, posConfig?.notes || 'top-left');
+                } else {
+                    container.style.top = '10px';
+                    container.style.left = '10px';
+                }
             }
+
+            // Escutar mudanças de posição em tempo real
+            chrome.storage.onChanged.addListener((changes, area) => {
+                if (area === 'local' && changes.fd_panel_positions) {
+                    const newPos = changes.fd_panel_positions.newValue?.notes || 'top-left';
+                    if (globalThis.applyPanelPosition) {
+                        globalThis.applyPanelPosition(container, newPos);
+                    }
+                }
+            });
 
             container.innerHTML = getHTMLTemplate();
 

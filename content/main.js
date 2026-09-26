@@ -9,13 +9,19 @@ if (!globalThis._flowdeskMainInitialized) {
 globalThis._flowdeskMainInitialized = true;
 
 const TamperMenuActions = {
-    resetPositions() {
+    async resetPositions() {
+        const posData = await SafeStorage.get('fd_panel_positions', { fin: 'top-right', notes: 'top-left' });
+
         const painelFin = document.getElementById('painel-financeiro');
         if (painelFin) {
-            painelFin.style.top = '10px';
-            painelFin.style.right = '10px';
-            painelFin.style.left = 'auto';
-            painelFin.style.bottom = 'auto';
+            if (globalThis.applyPanelPosition) {
+                globalThis.applyPanelPosition(painelFin, posData?.fin || 'top-right');
+            } else {
+                painelFin.style.top = '10px';
+                painelFin.style.right = '10px';
+                painelFin.style.left = 'auto';
+                painelFin.style.bottom = 'auto';
+            }
             painelFin.style.display = 'flex';
         }
 
@@ -30,11 +36,17 @@ const TamperMenuActions = {
 
         const painelNote = document.getElementById('bloco-notas');
         if (painelNote) {
-            painelNote.style.top = '10px';
-            painelNote.style.left = '10px';
+            if (globalThis.applyPanelPosition) {
+                globalThis.applyPanelPosition(painelNote, posData?.notes || 'top-left');
+            } else {
+                painelNote.style.top = '10px';
+                painelNote.style.left = '10px';
+            }
             painelNote.style.width = '350px';
             painelNote.style.height = '375px';
         }
+
+        await SafeStorage.set(CONFIG_APP.STORAGE_POS, null);
 
         ToastService.success("✅ Janelas realinhadas para o padrão!");
     },
@@ -43,6 +55,7 @@ const TamperMenuActions = {
         ModalService.confirm("Resetar tudo?", "Tem certeza que deseja resetar todas as configurações e cookies para o padrão? Esta ação é irreversível.", async () => {
             await SafeStorage.set(CONFIG_APP.STORAGE_DATA, null);
             await SafeStorage.set(CONFIG_APP.STORAGE_POS, null);
+            await SafeStorage.set('fd_panel_positions', null);
             await SafeStorage.set(CONFIG_APP.STORAGE_MACROS, null);
             await SafeStorage.set(CONFIG_APP.STORAGE_AGENDA, null);
             await SafeStorage.set(CONFIG_APP.STORAGE_THEME, null);

@@ -53,6 +53,25 @@ async function processQueue() {
 self.addEventListener('online', () => processQueue());
 processQueue(); // processar sobras de sessão anterior
 // ────────────────────────────────────────────────────────────────────────────
+
+// ─── INJEÇÃO PROGRAMÁTICA (domínios opcionais aprovados) ──────────────────────
+const CONTENT_SCRIPTS = [
+    'content/config.js',
+    'content/storage.js',
+    'content/utils.js',
+    'content/icons/lucide.js',
+    'content/global-state.js',
+    'content/services/toast.js',
+    'content/services/modal.js',
+    'content/services/holiday.js',
+    'content/services/groq.js',
+    'content/modules/auth.js',
+    'content/modules/fin-module.js',
+    'content/modules/notes-module.js',
+    'content/modules/speed-dial.js',
+    'content/main.js'
+];
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     // ─── GROQ AI ────────────────────────────────────────────────────────
@@ -110,6 +129,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             })
             .then(data => sendResponse({ ok: true, data }))
             .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
+    // ─── INJEÇÃO PROGRAMÁTICA (domínios opcionais aprovados) ─────────────
+    if (msg.action === 'inject-scripts') {
+        const { tabId } = msg;
+        (async () => {
+            try {
+                for (const file of CONTENT_SCRIPTS) {
+                    await chrome.scripting.executeScript({
+                        target: { tabId },
+                        files: [file]
+                    });
+                }
+                sendResponse({ ok: true });
+            } catch (err) {
+                console.warn('[FlowDesk SW] Falha ao injetar em aba:', err.message);
+                sendResponse({ ok: false, error: err.message });
+            }
+        })();
         return true;
     }
 
