@@ -212,16 +212,21 @@ function applyPanelPosition(element, positionKey) {
     element.style.bottom = '';
     element.style.left = '';
     element.style.right = '';
-    element.style.transform = '';
+    element.style.transform = 'none';
+    element.style.margin = '0';
 
     const MARGIN = '10px';
     if (positionKey === 'top-left') {
         element.style.top = MARGIN;
         element.style.left = MARGIN;
+        element.style.right = 'auto';
+        element.style.bottom = 'auto';
     } else {
         // 'top-right' é o padrão
         element.style.top = MARGIN;
         element.style.right = MARGIN;
+        element.style.left = 'auto';
+        element.style.bottom = 'auto';
     }
 }
 

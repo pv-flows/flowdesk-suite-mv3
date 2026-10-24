@@ -91,31 +91,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- SEÇÃO: SEGURANÇA ---
-    const inputGroq = document.getElementById('opt-groq-key');
     const inputWebhook = document.getElementById('opt-webhook-url');
     const inputWhitelist = document.getElementById('opt-whitelist');
-    const btnSaveGroq = document.getElementById('btn-save-groq');
     const btnSaveWebhook = document.getElementById('btn-save-webhook');
     const btnSaveWhitelist = document.getElementById('btn-save-whitelist');
 
-    const securityData = await chrome.storage.local.get(['groq_api_key', 'webhook_url', 'operadores_whitelist']);
-    if (securityData.groq_api_key) inputGroq.value = securityData.groq_api_key;
+    const securityData = await chrome.storage.local.get(['webhook_url', 'operadores_whitelist']);
     if (securityData.webhook_url) inputWebhook.value = securityData.webhook_url;
     if (securityData.operadores_whitelist) {
         inputWhitelist.value = securityData.operadores_whitelist
             .map(op => `${op.nome},${op.equipe}`)
             .join('\n');
     }
-
-    btnSaveGroq.addEventListener('click', async () => {
-        const val = inputGroq.value.trim();
-        if (val && !val.startsWith('gsk_')) {
-            flashBtn(btnSaveGroq, 'Salvar Chave Groq', '❌ Deve começar com gsk_', true);
-            return;
-        }
-        await chrome.storage.local.set({ groq_api_key: val });
-        flashBtn(btnSaveGroq, 'Salvar Chave Groq', 'Salvo ✓');
-    });
 
     btnSaveWebhook.addEventListener('click', async () => {
         const val = inputWebhook.value.trim();
@@ -216,12 +203,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (selectNotesPos) selectNotesPos.value = sanitizePos(positions.notes, 'top-left');
 
     const savePanelPositions = async () => {
+        const fin = sanitizePos(selectFinPos?.value, 'top-right');
+        const notes = sanitizePos(selectNotesPos?.value, 'top-left');
         await chrome.storage.local.set({
-            fd_panel_positions: {
-                fin: sanitizePos(selectFinPos?.value, 'top-right'),
-                notes: sanitizePos(selectNotesPos?.value, 'top-left')
-            }
+            fd_panel_positions: { fin, notes }
         });
+        await chrome.storage.local.remove(['hyper_bloco_pos', 'hyper_bloco_pos_v2']);
     };
 
     selectFinPos?.addEventListener('change', savePanelPositions);
@@ -501,7 +488,7 @@ Vencimento das propostas: *{VENCIMENTO}*`;
     const btnFactoryReset = document.getElementById('btn-factory-reset');
 
     btnResetPos.addEventListener('click', async () => {
-        await chrome.storage.local.remove(['fd_panel_positions', 'hyper_bloco_pos_v2']);
+        await chrome.storage.local.remove(['fd_panel_positions', 'hyper_bloco_pos', 'hyper_bloco_pos_v2']);
         if (selectFinPos) selectFinPos.value = 'top-right';
         if (selectNotesPos) selectNotesPos.value = 'top-left';
         broadcastCmd('resetPositions');

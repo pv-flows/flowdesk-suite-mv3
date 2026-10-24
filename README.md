@@ -1,2 +1,2 @@
 # flowdesk-suite-mv3
-FlowDesk Suite Corporativa — Versão Manifest V3 (v5.2.4)
+FlowDesk Suite Corporativa — Versão Manifest V3 (v5.2.5)

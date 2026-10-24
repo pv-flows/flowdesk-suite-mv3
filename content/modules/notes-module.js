@@ -945,28 +945,31 @@ globalThis.NotesModule = (function () {
             container.style.height = '375px';
 
             // Restaurar posição salva por arraste ou aplicar posição configurada
+            const posConfig = await SafeStorage.get('fd_panel_positions', { notes: 'top-left' });
             const savedPos = await SafeStorage.get(CONFIG_APP.STORAGE_POS, null);
-            if (savedPos) {
-                if (savedPos.top) container.style.top = savedPos.top;
-                if (savedPos.left) container.style.left = savedPos.left;
-                if (savedPos.right) container.style.right = savedPos.right;
-                if (savedPos.bottom) container.style.bottom = savedPos.bottom;
+            if (savedPos && savedPos.top && (savedPos.left || savedPos.right)) {
+                container.style.top = savedPos.top;
+                if (savedPos.left && savedPos.left !== 'auto') container.style.left = savedPos.left;
+                if (savedPos.right && savedPos.right !== 'auto') container.style.right = savedPos.right;
+                if (savedPos.bottom && savedPos.bottom !== 'auto') container.style.bottom = savedPos.bottom;
                 if (savedPos.width) container.style.width = savedPos.width;
                 if (savedPos.height) container.style.height = savedPos.height;
             } else {
-                const posConfig = await SafeStorage.get('fd_panel_positions', { notes: 'top-left' });
                 if (globalThis.applyPanelPosition) {
                     globalThis.applyPanelPosition(container, posConfig?.notes || 'top-left');
                 } else {
                     container.style.top = '10px';
                     container.style.left = '10px';
+                    container.style.right = 'auto';
+                    container.style.bottom = 'auto';
                 }
             }
 
             // Escutar mudanças de posição em tempo real
-            chrome.storage.onChanged.addListener((changes, area) => {
+            chrome.storage.onChanged.addListener(async (changes, area) => {
                 if (area === 'local' && changes.fd_panel_positions) {
                     const newPos = changes.fd_panel_positions.newValue?.notes || 'top-left';
+                    await SafeStorage.set(CONFIG_APP.STORAGE_POS, null);
                     if (globalThis.applyPanelPosition) {
                         globalThis.applyPanelPosition(container, newPos);
                     }
@@ -1510,43 +1513,7 @@ globalThis.NotesModule = (function () {
                 }
             });
 
-            // ✨ Melhorar com Groq (Llama 3.1)
-            document.getElementById('btn-melhorar-gemini').onclick = () => {
-                const texto = ui.areaTexto.value;
-                if (!texto || !texto.trim()) {
-                    ToastService.warning('Bloco vazio.', 'bloco-notas');
-                    return;
-                }
-                const btn = document.getElementById('btn-melhorar-gemini');
-                btn.innerText = '⏳ Melhorando...';
-                btn.disabled = true;
 
-                GroqService.improve(
-                    texto,
-                    (resultado) => {
-                        // Salvar original no histórico antes de substituir
-                        const t = getActiveTab();
-                        const agora = new Date().toLocaleTimeString('pt-BR').substring(0, 5);
-                        t.history.unshift({ title: `Antes do Groq — ${agora}`, content: texto });
-                        if (t.history.length > CONFIG_APP.MAX_HISTORY) t.history.pop();
-
-                        // Aplicar resultado
-                        applyMacroToInput(ui.areaTexto, resultado);
-                        t.content = resultado;
-                        salvarDados();
-                        renderHistory();
-
-                        ToastService.success('Texto melhorado!', 'bloco-notas');
-                        btn.innerHTML = `<div style="display:flex; align-items:center; gap:4px;">${globalThis.LucideIcons.get('sparkles', 14)} Melhorar</div>`;
-                        btn.disabled = false;
-                    },
-                    (erro) => {
-                        ToastService.error(erro, 'bloco-notas');
-                        btn.innerHTML = `<div style="display:flex; align-items:center; gap:4px;">${globalThis.LucideIcons.get('sparkles', 14)} Melhorar</div>`;
-                        btn.disabled = false;
-                    }
-                );
-            };
 
             // Copiar rascunho
             document.getElementById('btn-copy-draft').onclick = async () => {
@@ -1697,7 +1664,6 @@ globalThis.NotesModule = (function () {
                         <div style="display:flex; gap:4px;">
                             <button id="btn-macros" class="btn-mini" style="display:flex; align-items:center; gap:4px;">${globalThis.LucideIcons.get('zap', 12)} Macros</button>
                             <button id="btn-agenda" class="btn-mini" style="display:flex; align-items:center; gap:4px;">${globalThis.LucideIcons.get('calendar', 12)} Agenda</button>
-                            <button id="btn-melhorar-gemini" class="btn-mini" style="display:flex; align-items:center; gap:4px;" title="Melhorar texto com IA">${globalThis.LucideIcons.get('sparkles', 12)} Melhorar</button>
                         </div>
                         <button id="btn-copy-draft" class="btn-mini">Copiar</button>
                     </div>
