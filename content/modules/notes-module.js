@@ -944,25 +944,17 @@ globalThis.NotesModule = (function () {
             container.style.width = '350px';
             container.style.height = '375px';
 
-            // Restaurar posição salva por arraste ou aplicar posição configurada
+            // Aplicar posição padrão configurada (padrão: top-left / superior esquerdo)
             const posConfig = await SafeStorage.get('fd_panel_positions', { notes: 'top-left' });
-            const savedPos = await SafeStorage.get(CONFIG_APP.STORAGE_POS, null);
-            if (savedPos && savedPos.top && (savedPos.left || savedPos.right)) {
-                container.style.top = savedPos.top;
-                if (savedPos.left && savedPos.left !== 'auto') container.style.left = savedPos.left;
-                if (savedPos.right && savedPos.right !== 'auto') container.style.right = savedPos.right;
-                if (savedPos.bottom && savedPos.bottom !== 'auto') container.style.bottom = savedPos.bottom;
-                if (savedPos.width) container.style.width = savedPos.width;
-                if (savedPos.height) container.style.height = savedPos.height;
+            if (globalThis.applyPanelPosition) {
+                globalThis.applyPanelPosition(container, posConfig?.notes || 'top-left');
             } else {
-                if (globalThis.applyPanelPosition) {
-                    globalThis.applyPanelPosition(container, posConfig?.notes || 'top-left');
-                } else {
-                    container.style.top = '10px';
-                    container.style.left = '10px';
-                    container.style.right = 'auto';
-                    container.style.bottom = 'auto';
-                }
+                container.style.top = '10px';
+                container.style.left = '10px';
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+                container.style.transform = 'none';
+                container.style.margin = '0';
             }
 
             // Escutar mudanças de posição em tempo real
@@ -1574,20 +1566,12 @@ globalThis.NotesModule = (function () {
                     target.style.bottom = 'auto';
                 };
 
-                const onUp = async () => {
+                const onUp = () => {
                     if (isDragging) {
                         isDragging = false;
                         trigger.style.cursor = 'move';
                         target.classList.remove('em-movimento');
                         globalThis.clampToViewport(target);
-                        await SafeStorage.set(saveKey, {
-                            top: target.style.top,
-                            left: target.style.left,
-                            right: target.style.right,
-                            bottom: target.style.bottom,
-                            width: target.style.width,
-                            height: target.style.height
-                        });
                     }
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
