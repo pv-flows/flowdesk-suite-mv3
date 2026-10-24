@@ -211,14 +211,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const posData = await chrome.storage.local.get('fd_panel_positions');
     const positions = posData.fd_panel_positions || { fin: 'top-right', notes: 'top-left' };
 
-    if (selectFinPos) selectFinPos.value = positions.fin || 'top-right';
-    if (selectNotesPos) selectNotesPos.value = positions.notes || 'top-left';
+    const sanitizePos = (pos, fallback) => (pos === 'top-left' || pos === 'top-right') ? pos : fallback;
+    if (selectFinPos) selectFinPos.value = sanitizePos(positions.fin, 'top-right');
+    if (selectNotesPos) selectNotesPos.value = sanitizePos(positions.notes, 'top-left');
 
     const savePanelPositions = async () => {
         await chrome.storage.local.set({
             fd_panel_positions: {
-                fin: selectFinPos?.value || 'top-right',
-                notes: selectNotesPos?.value || 'top-left'
+                fin: sanitizePos(selectFinPos?.value, 'top-right'),
+                notes: sanitizePos(selectNotesPos?.value, 'top-left')
             }
         });
     };

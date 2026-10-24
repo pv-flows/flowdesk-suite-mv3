@@ -1398,6 +1398,9 @@ globalThis.NotesModule = (function () {
                 ui.screenAgenda.style.display = 'none';
                 ui.screenMacros.style.display = 'none';
                 ui.tabsContainer.style.display = 'flex';
+                if (globalThis.ModalService) {
+                    globalThis.ModalService.hide();
+                }
                 checkReminders();
             }
 
@@ -1407,6 +1410,9 @@ globalThis.NotesModule = (function () {
                 if (cont) {
                     cont.style.display = 'none';
                     closeAllScreens();
+                }
+                if (globalThis.ModalService) {
+                    globalThis.ModalService.hide();
                 }
                 checkReminders();
             }

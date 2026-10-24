@@ -722,6 +722,9 @@ globalThis.FinModule = (function () {
                 container.style.display = 'none';
                 document.getElementById('screen-hist-propostas').style.display = 'none';
                 document.getElementById('screen-preview-proposta').style.display = 'none';
+                if (globalThis.ModalService) {
+                    globalThis.ModalService.hide();
+                }
             };
 
             /**

@@ -12,39 +12,50 @@ const ModalService = {
 
     /** Inicializa a estrutura do modal no DOM */
     init() {
-        if (document.getElementById('modal-confirm-global')) return;
+        if (document.getElementById('modal-confirm-global')) {
+            this.ui = {
+                container: document.getElementById('modal-confirm-global'),
+                title: document.getElementById('modal-title-global'),
+                desc: document.getElementById('modal-desc-global'),
+                input: document.getElementById('modal-input-global'),
+                btnConfirm: document.getElementById('modal-btn-confirm-global'),
+                btnCancel: document.getElementById('modal-btn-cancel-global')
+            };
+            return;
+        }
 
         const modal = document.createElement('div');
         modal.id = 'modal-confirm-global';
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: var(--fd-z-modal, 2147483646); display: none; align-items: center; justify-content: center;
+            z-index: 2147483647 !important; display: none; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             color-scheme: light; isolation: isolate;
         `;
+        modal.style.setProperty('z-index', '2147483647', 'important');
 
         modal.innerHTML = `
             <div class="modal-content-global" style="
-                background: var(--fd-bg, #ffffff); padding: 20px; border-radius: 12px;
-                width: 320px; text-align: center; border: 1px solid var(--fd-border, #e2e8f0);
-                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                background: var(--fd-bg, #ffffff); padding: 18px; border-radius: 12px;
+                width: 300px; max-width: calc(100% - 20px); text-align: center; border: 1px solid var(--fd-border, #e2e8f0);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.25); box-sizing: border-box;
             ">
-                <div id="modal-title-global" style="font-weight: bold; margin-bottom: 10px; color: var(--fd-text, #1a202c);"></div>
-                <div id="modal-desc-global" style="font-size: 12px; margin-bottom: 15px; color: var(--fd-text-muted, #718096); line-height: 1.4;"></div>
+                <div id="modal-title-global" style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: var(--fd-text, #1a202c);"></div>
+                <div id="modal-desc-global" style="font-size: 12px; margin-bottom: 14px; color: var(--fd-text-muted, #718096); line-height: 1.4; word-break: break-word;"></div>
                 <input type="text" id="modal-input-global" style="
                     display: none; width: 100%; padding: 8px; border-radius: 6px;
-                    border: 1px solid var(--fd-border, #e2e8f0); margin-bottom: 15px;
-                    background: var(--fd-bg, #ffffff); color: var(--fd-text, #1a202c);
+                    border: 1px solid var(--fd-border, #e2e8f0); margin-bottom: 14px;
+                    background: var(--fd-bg, #ffffff); color: var(--fd-text, #1a202c); box-sizing: border-box;
                 ">
-                <div style="display: flex; gap: 10px; justify-content: center;">
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                     <button id="modal-btn-cancel-global" style="
-                        padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                        padding: 7px 15px; border-radius: 6px; font-size: 11px; font-weight: 700;
                         cursor: pointer; border: 1px solid var(--fd-border, #e2e8f0);
                         background: var(--fd-bg-secondary, #f7fafc); color: var(--fd-text-muted, #718096);
                     ">Cancelar</button>
                     <button id="modal-btn-confirm-global" style="
-                        padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                        padding: 7px 15px; border-radius: 6px; font-size: 11px; font-weight: 700;
                         cursor: pointer; border: none; color: white;
                     ">Confirmar</button>
                 </div>
@@ -79,16 +90,17 @@ const ModalService = {
     _applyPosition(containerId) {
         if (containerId) {
             const containerEl = document.getElementById(containerId);
-            if (containerEl) {
+            if (containerEl && containerEl.style.display !== 'none') {
                 const rect = containerEl.getBoundingClientRect();
-                this.ui.container.style.top = rect.top + 'px';
-                this.ui.container.style.left = rect.left + 'px';
-                this.ui.container.style.width = rect.width + 'px';
-                this.ui.container.style.height = rect.height + 'px';
-                this.ui.container.style.borderRadius = window.getComputedStyle(containerEl).borderRadius || '12px';
-                // Esconder bordas excedentes para não vazar a tela de blur fora do raio
-                this.ui.container.style.overflow = 'hidden';
-                return;
+                if (rect.width > 200 && rect.height > 150) {
+                    this.ui.container.style.top = rect.top + 'px';
+                    this.ui.container.style.left = rect.left + 'px';
+                    this.ui.container.style.width = rect.width + 'px';
+                    this.ui.container.style.height = rect.height + 'px';
+                    this.ui.container.style.borderRadius = window.getComputedStyle(containerEl).borderRadius || '12px';
+                    this.ui.container.style.overflow = 'hidden';
+                    return;
+                }
             }
         }
         // Fallback: Full screen
@@ -102,6 +114,10 @@ const ModalService = {
 
     confirm(title, desc, callback, containerId = null) {
         this.init();
+        if (this.ui.container && document.body) {
+            document.body.appendChild(this.ui.container);
+            this.ui.container.style.setProperty('z-index', '2147483647', 'important');
+        }
         this._applyPosition(containerId);
         this.ui.title.innerText = title;
         this.ui.desc.innerText = desc;
@@ -115,6 +131,10 @@ const ModalService = {
 
     prompt(title, initialVal, callback, containerId = null) {
         this.init();
+        if (this.ui.container && document.body) {
+            document.body.appendChild(this.ui.container);
+            this.ui.container.style.setProperty('z-index', '2147483647', 'important');
+        }
         this._applyPosition(containerId);
         this.ui.title.innerText = title;
         this.ui.desc.style.display = 'none';

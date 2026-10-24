@@ -34,7 +34,7 @@
     --fd-z-base:         2147483640;
     --fd-z-panel:        2147483642;
     --fd-z-active:       2147483645;
-    --fd-z-modal:        2147483646;
+    --fd-z-modal:        2147483647;
     --fd-z-toast:        2147483647;
 }
 
@@ -71,7 +71,7 @@
     --fd-z-base:         2147483640;
     --fd-z-panel:        2147483642;
     --fd-z-active:       2147483645;
-    --fd-z-modal:        2147483646;
+    --fd-z-modal:        2147483647;
     --fd-z-toast:        2147483647;
 
     /* Scoped Reset — Proteção contra regras globais destrutivas da intranet */
@@ -80,6 +80,10 @@
     letter-spacing: normal !important;
     text-transform: none !important;
     -webkit-font-smoothing: antialiased !important;
+}
+
+#modal-confirm-global {
+    z-index: 2147483647 !important;
 }
 
 #painel-financeiro *,

@@ -202,9 +202,9 @@ window.addEventListener('resize', () => {
 });
 
 /**
- * Aplica uma das 6 posições predefinidas ao elemento de painel.
+ * Aplica uma das posições predefinidas ao elemento de painel ('top-left' ou 'top-right').
  * @param {HTMLElement} element - Elemento do painel
- * @param {string} positionKey - 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
+ * @param {string} positionKey - 'top-left' | 'top-right'
  */
 function applyPanelPosition(element, positionKey) {
     if (!element) return;
@@ -215,36 +215,13 @@ function applyPanelPosition(element, positionKey) {
     element.style.transform = '';
 
     const MARGIN = '10px';
-    switch (positionKey) {
-        case 'top-left':
-            element.style.top = MARGIN;
-            element.style.left = MARGIN;
-            break;
-        case 'top-center':
-            element.style.top = MARGIN;
-            element.style.left = '50%';
-            element.style.transform = 'translateX(-50%)';
-            break;
-        case 'top-right':
-            element.style.top = MARGIN;
-            element.style.right = MARGIN;
-            break;
-        case 'bottom-left':
-            element.style.bottom = MARGIN;
-            element.style.left = MARGIN;
-            break;
-        case 'bottom-center':
-            element.style.bottom = MARGIN;
-            element.style.left = '50%';
-            element.style.transform = 'translateX(-50%)';
-            break;
-        case 'bottom-right':
-            element.style.bottom = MARGIN;
-            element.style.right = MARGIN;
-            break;
-        default:
-            element.style.top = MARGIN;
-            element.style.right = MARGIN;
+    if (positionKey === 'top-left') {
+        element.style.top = MARGIN;
+        element.style.left = MARGIN;
+    } else {
+        // 'top-right' é o padrão
+        element.style.top = MARGIN;
+        element.style.right = MARGIN;
     }
 }
 
