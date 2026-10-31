@@ -1,14 +1,34 @@
 // FlowDesk MV3 — service-worker.js
 // Sprint 2.1 — Queue de retry para confiabilidade de rede
+// Etapa 1 (v5.2.7) — Orquestração OAuth 2.0 (Google & Microsoft) + Refresh Automático de Sessão
+
+importScripts('auth-service.js');
 
 /**
  * Service Worker da extensão FlowDesk.
- * Centraliza todas as chamadas fetch cross-origin que content scripts não podem fazer.
+ * Centraliza todas as chamadas fetch cross-origin e autenticação OAuth 2.0 PKCE.
  * Ações suportadas:
- *   - 'groq'       → Chamada à API Groq (Llama 3.3) para revisão de texto
- *   - 'fetch-post' → POST genérico para webhooks (telemetria, propostas) — via queue de retry
- *   - 'fetch-get'  → GET genérico
+ *   - 'auth-login'           → Inicia login OAuth 2.0 ('google' ou 'microsoft'/'azure')
+ *   - 'auth-logout'          → Encerra sessão OAuth atual
+ *   - 'auth-status'          → Retorna status da sessão, usuário e Redirect URI
+ *   - 'auth-test-connection' → Valida URL e Anon Key do Supabase
+ *   - 'auth-update-identity' → Atualiza Nome/Equipe local e remotamente no banco
+ *   - 'groq'                 → Chamada à API Groq (Llama 3.3) para revisão de texto
+ *   - 'fetch-post'           → POST genérico para webhooks (telemetria, propostas) — via queue de retry
+ *   - 'fetch-get'            → GET genérico
  */
+
+// ─── ALARME DE MANUTENÇÃO DE SESSÃO OAUTH ───────────────────────────────────
+const AUTH_REFRESH_ALARM = 'fd_auth_refresh_alarm';
+
+if (chrome.alarms) {
+    chrome.alarms.create(AUTH_REFRESH_ALARM, { periodInMinutes: 25 });
+    chrome.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name === AUTH_REFRESH_ALARM && globalThis.AuthService) {
+            globalThis.AuthService.getValidSession().catch(() => {});
+        }
+    });
+}
 
 // ─── QUEUE DE RETRY ─────────────────────────────────────────────────────────
 const QUEUE_KEY = 'fd_pending_queue';
@@ -74,9 +94,48 @@ const CONTENT_SCRIPTS = [
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
+    // ─── AUTENTICAÇÃO OAUTH 2.0 (GOOGLE & MICROSOFT) ────────────────────
+    if (msg.action === 'auth-login') {
+        globalThis.AuthService.signInWithOAuth(msg.provider || 'google')
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
+    if (msg.action === 'auth-logout') {
+        globalThis.AuthService.signOut()
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
+    if (msg.action === 'auth-status') {
+        globalThis.AuthService.getStatus()
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
+    if (msg.action === 'auth-test-connection') {
+        globalThis.AuthService.testConnection(msg.url, msg.anonKey)
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
+    if (msg.action === 'auth-update-identity') {
+        globalThis.AuthService.updateProfileIdentity(msg.nome, msg.equipe)
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
+    }
+
     // ─── GROQ AI ────────────────────────────────────────────────────────
-    if (msg.action === 'groq') {
-        const { text, apiKey, model, systemPrompt } = msg;
+    if (msg.action === 'groq' || msg.action === 'FETCH_GROQ_SUGGESTION') {
+        const text = msg.text || msg.payload?.prompt || '';
+        const apiKey = msg.apiKey;
+        const model = msg.model || 'llama-3.3-70b-versatile';
+        const systemPrompt = msg.systemPrompt || 'Você é um assistente profissional de atendimento. Revise o texto mantendo o sentido original.';
 
         fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -161,7 +220,3 @@ chrome.commands.onCommand.addListener(async (command) => {
         chrome.tabs.sendMessage(tab.id, { action: 'command', cmd: command });
     }
 });
-
-// A injeção em todas as páginas e domínios customizados é orquestrada diretamente
-// pelo content_scripts do manifest.json com filtro inteligente por domínio em runtime.
-

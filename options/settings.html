@@ -15,7 +15,7 @@
             </div>
             <nav class="nav-menu">
                 <button class="nav-item active" data-target="sec-identidade">Identidade</button>
-                <button class="nav-item" data-target="sec-seguranca">Segurança</button>
+                <button class="nav-item" data-target="sec-seguranca">Segurança &amp; Nuvem</button>
                 <button class="nav-item" data-target="sec-aparencia">Aparência</button>
                 <button class="nav-item" data-target="sec-personalizacao">Personalização</button>
                 <button class="nav-item" data-target="sec-sites">Sites Ativos</button>
@@ -28,30 +28,85 @@
         <main class="content">
             <!-- 1. Identidade -->
             <section id="sec-identidade" class="section active">
-                <h3>Identidade do Operador</h3>
-                <p class="desc">Configure seu nome e equipe para identificação na telemetria.</p>
-                <div class="form-group">
-                    <label>Nome do Operador</label>
-                    <input type="text" id="opt-nome" placeholder="Ex: Paulo Silva">
+                <h3>Identidade e Conta Cloud</h3>
+                <p class="desc">Conecte sua conta Google ou Microsoft para identificar seu perfil e sincronizar seus dados na nuvem.</p>
+
+                <div class="card" style="margin-bottom: 18px;">
+                    <h4>☁️ Conta Conectada (Google / Microsoft)</h4>
+                    <div id="oauth-account-status" style="margin: 10px 0 14px 0; padding: 12px; border-radius: 8px; background: #f7fafc; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="oauth-avatar" style="width: 38px; height: 38px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #4a5568; overflow: hidden; flex-shrink: 0;">👤</div>
+                            <div>
+                                <div id="oauth-user-name" style="font-weight: 600; font-size: 13px; color: #1a202c;">Nenhuma conta conectada</div>
+                                <div id="oauth-user-email" style="font-size: 11px; color: #718096;">Modo Local (Offline)</div>
+                            </div>
+                        </div>
+                        <span id="oauth-provider-badge" style="font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #edf2f7; color: #4a5568;">Local</span>
+                    </div>
+
+                    <div id="oauth-login-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" id="btn-login-google" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600;">
+                            <span>🔵</span> Entrar com Google
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="btn-login-microsoft" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600;">
+                            <span>🟦</span> Entrar com Microsoft
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-danger" id="btn-logout-oauth" style="display: none; width: 100%; margin-top: 8px;">
+                        Desconectar Conta Cloud
+                    </button>
+                    <p id="oauth-feedback-msg" style="font-size: 11px; margin: 8px 0 0 0; color: #718096; display: none;"></p>
                 </div>
-                <div class="form-group">
-                    <label>Equipe</label>
-                    <select id="opt-equipe">
-                        <!-- Preenchido via AuthModule.getEquipes() -->
-                    </select>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" id="btn-save-identidade" style="flex: 1;">Salvar Identidade</button>
-                    <button class="btn btn-secondary" id="btn-change-operator" style="flex: 1;">Trocar Operador</button>
+
+                <div class="card">
+                    <h4>Perfil de Operação</h4>
+                    <div class="form-group">
+                        <label>Nome do Operador</label>
+                        <input type="text" id="opt-nome" placeholder="Ex: Paulo Silva">
+                    </div>
+                    <div class="form-group">
+                        <label>Equipe</label>
+                        <select id="opt-equipe">
+                            <!-- Preenchido via AuthModule.getEquipes() -->
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" id="btn-save-identidade" style="flex: 1;">Salvar Identidade</button>
+                        <button class="btn btn-secondary" id="btn-change-operator" style="flex: 1;">Trocar Operador</button>
+                    </div>
                 </div>
             </section>
 
             <!-- 2. Segurança -->
             <section id="sec-seguranca" class="section">
-                <h3>Segurança e Credenciais</h3>
-                <p class="desc">Configurações de integração e acesso de operadores.</p>
+                <h3>Segurança, Banco de Dados e Credenciais</h3>
+                <p class="desc">Configurações de conexão com o Banco de Dados (Supabase), OAuth 2.0 e telemetria.</p>
                 
+                <div class="card" style="margin-bottom: 16px; border-color: #d6bcfa;">
+                    <h4>🗄️ Conexão Cloud Database (Supabase + OAuth 2.0)</h4>
+                    <p class="desc-sm">Configure a URL e a Anon Key pública do seu projeto Supabase para habilitar login Google/Microsoft e sincronização em nuvem.</p>
 
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Redirect URI da Extensão (Copie e adicione no Supabase Auth &gt; URL Configuration)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="opt-redirect-uri" readonly style="flex: 1; background: #edf2f7; font-family: monospace; font-size: 11px; color: #2d3748;">
+                            <button type="button" class="btn btn-secondary" id="btn-copy-redirect-uri" style="flex-shrink: 0;">Copiar URI</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Supabase Project URL</label>
+                        <input type="url" id="opt-supabase-url" placeholder="https://seu-projeto.supabase.co">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Supabase Anon Key (Public)</label>
+                        <input type="password" id="opt-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="btn-save-supabase">Salvar &amp; Testar Conexão Cloud</button>
+                    <p id="supabase-test-status" style="font-size: 11px; margin: 8px 0 0 0; font-weight: 600; display: none;"></p>
+                </div>
 
                 <div class="card">
                     <h4>Webhook URL (Telemetria)</h4>

@@ -1,5 +1,6 @@
 // FlowDesk MV3 — settings.js
 // Sprint 4.1 — Lógica da página de configurações
+// Etapa 1 (v5.2.7) — Integração OAuth 2.0 (Google & Microsoft) e Cloud Database (Supabase)
 
 document.addEventListener('DOMContentLoaded', async () => {
     
@@ -34,22 +35,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 2000);
     }
 
-    // --- SEÇÃO: IDENTIDADE ---
+    // --- SEÇÃO: IDENTIDADE & CONTA CLOUD (GOOGLE / MICROSOFT) ---
     const inputNome = document.getElementById('opt-nome');
     const selectEquipe = document.getElementById('opt-equipe');
     const btnSaveIdentidade = document.getElementById('btn-save-identidade');
+    const btnChangeOperator = document.getElementById('btn-change-operator');
+
+    const oauthAvatar = document.getElementById('oauth-avatar');
+    const oauthUserName = document.getElementById('oauth-user-name');
+    const oauthUserEmail = document.getElementById('oauth-user-email');
+    const oauthProviderBadge = document.getElementById('oauth-provider-badge');
+    const oauthLoginButtons = document.getElementById('oauth-login-buttons');
+    const btnLoginGoogle = document.getElementById('btn-login-google');
+    const btnLoginMicrosoft = document.getElementById('btn-login-microsoft');
+    const btnLogoutOauth = document.getElementById('btn-logout-oauth');
+    const oauthFeedbackMsg = document.getElementById('oauth-feedback-msg');
 
     // Carregar equipes da whitelist (se houver AuthModule e SafeStorage)
+    const defaultEquipes = ['Geral', 'Digital', 'Presencial', 'Receptivo'];
     if (globalThis.AuthModule) {
         const equipes = await globalThis.AuthModule.getEquipes();
-        equipes.forEach(eq => {
+        const merged = Array.from(new Set([...defaultEquipes, ...equipes]));
+        merged.forEach(eq => {
             const option = document.createElement('option');
             option.value = eq;
             option.textContent = eq;
             selectEquipe.appendChild(option);
         });
     } else {
-        ['Digital', 'Presencial', 'Receptivo'].forEach(eq => {
+        defaultEquipes.forEach(eq => {
             const option = document.createElement('option');
             option.value = eq;
             option.textContent = eq;
@@ -57,9 +71,109 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const { user_nome, user_equipe } = await chrome.storage.local.get(['user_nome', 'user_equipe']);
-    if (user_nome) inputNome.value = user_nome;
-    if (user_equipe) selectEquipe.value = user_equipe;
+    const ensureEquipeOption = (eq) => {
+        if (!eq) return;
+        const exists = Array.from(selectEquipe.options).some(o => o.value === eq);
+        if (!exists) {
+            const option = document.createElement('option');
+            option.value = eq;
+            option.textContent = eq;
+            selectEquipe.appendChild(option);
+        }
+        selectEquipe.value = eq;
+    };
+
+    const savedNome = await globalThis.SafeStorage.get('user_nome', '');
+    const savedEquipe = await globalThis.SafeStorage.get('user_equipe', 'Geral');
+    if (savedNome) inputNome.value = savedNome;
+    if (savedEquipe) ensureEquipeOption(savedEquipe);
+
+    const showOauthFeedback = (msg, isError = false) => {
+        if (!oauthFeedbackMsg) return;
+        oauthFeedbackMsg.style.display = 'block';
+        oauthFeedbackMsg.style.color = isError ? '#e53e3e' : '#38a169';
+        oauthFeedbackMsg.textContent = msg;
+    };
+
+    const refreshOauthStatusUI = () => {
+        chrome.runtime.sendMessage({ action: 'auth-status' }, (res) => {
+            if (!res?.ok) return;
+
+            const redirectInput = document.getElementById('opt-redirect-uri');
+            if (redirectInput && res.redirectUri) {
+                redirectInput.value = res.redirectUri;
+            }
+
+            if (res.authenticated && res.user) {
+                const u = res.user;
+                if (oauthUserName) oauthUserName.textContent = u.nome || 'Operador Autenticado';
+                if (oauthUserEmail) oauthUserEmail.textContent = u.email || 'Sessão ativa';
+                if (oauthProviderBadge) {
+                    const isMs = u.provider === 'microsoft' || u.provider === 'azure';
+                    oauthProviderBadge.textContent = isMs ? 'Microsoft' : 'Google';
+                    oauthProviderBadge.style.background = isMs ? '#ebf8ff' : '#f0fff4';
+                    oauthProviderBadge.style.color = isMs ? '#2b6cb0' : '#2f855a';
+                }
+                if (oauthAvatar) {
+                    if (u.avatarUrl) {
+                        oauthAvatar.innerHTML = `<img src="${u.avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">`;
+                    } else {
+                        oauthAvatar.textContent = (u.nome || 'U').charAt(0).toUpperCase();
+                    }
+                }
+                if (oauthLoginButtons) oauthLoginButtons.style.display = 'none';
+                if (btnLogoutOauth) btnLogoutOauth.style.display = 'block';
+
+                if (u.nome && !inputNome.value) inputNome.value = u.nome;
+                if (u.equipe) ensureEquipeOption(u.equipe);
+            } else {
+                if (oauthUserName) oauthUserName.textContent = 'Nenhuma conta conectada';
+                if (oauthUserEmail) {
+                    oauthUserEmail.textContent = res.cloudConfigured
+                        ? 'Pronto para conectar (Modo Local ativo)'
+                        : 'Configure a URL do Supabase na aba Segurança & Nuvem';
+                }
+                if (oauthProviderBadge) {
+                    oauthProviderBadge.textContent = 'Local';
+                    oauthProviderBadge.style.background = '#edf2f7';
+                    oauthProviderBadge.style.color = '#4a5568';
+                }
+                if (oauthAvatar) oauthAvatar.textContent = '👤';
+                if (oauthLoginButtons) oauthLoginButtons.style.display = 'flex';
+                if (btnLogoutOauth) btnLogoutOauth.style.display = 'none';
+            }
+        });
+    };
+
+    refreshOauthStatusUI();
+
+    const handleOAuthLogin = (provider) => {
+        const btn = provider === 'google' ? btnLoginGoogle : btnLoginMicrosoft;
+        if (btn) btn.disabled = true;
+        showOauthFeedback(`Abrindo autenticação ${provider === 'google' ? 'Google' : 'Microsoft'}...`, false);
+
+        chrome.runtime.sendMessage({ action: 'auth-login', provider }, (res) => {
+            if (btn) btn.disabled = false;
+            if (res?.ok && res.profile) {
+                inputNome.value = res.profile.nome || inputNome.value;
+                ensureEquipeOption(res.profile.equipe || 'Geral');
+                showOauthFeedback(`Conectado com sucesso como ${res.profile.email}! ✓`, false);
+                refreshOauthStatusUI();
+            } else {
+                showOauthFeedback(res?.error || 'Falha ao autenticar.', true);
+            }
+        });
+    };
+
+    btnLoginGoogle?.addEventListener('click', () => handleOAuthLogin('google'));
+    btnLoginMicrosoft?.addEventListener('click', () => handleOAuthLogin('microsoft'));
+
+    btnLogoutOauth?.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: 'auth-logout' }, () => {
+            showOauthFeedback('Conta Cloud desconectada. Dados locais preservados.', false);
+            refreshOauthStatusUI();
+        });
+    });
 
     // Auxiliar para despachar o clique para todas as abas abertas
     const broadcastCmd = (cmd) => {
@@ -70,8 +184,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    const btnChangeOperator = document.getElementById('btn-change-operator');
-
     btnSaveIdentidade.addEventListener('click', async () => {
         const nome = inputNome.value.trim();
         const equipe = selectEquipe.value;
@@ -79,30 +191,116 @@ document.addEventListener('DOMContentLoaded', async () => {
             flashBtn(btnSaveIdentidade, 'Salvar Identidade', '❌ Preencha todos os campos', true);
             return;
         }
-        await chrome.storage.local.set({ user_nome: nome, user_equipe: equipe });
-        flashBtn(btnSaveIdentidade, 'Salvar Identidade', 'Salvo ✓');
+        chrome.runtime.sendMessage({ action: 'auth-update-identity', nome, equipe }, () => {
+            flashBtn(btnSaveIdentidade, 'Salvar Identidade', 'Salvo ✓');
+            refreshOauthStatusUI();
+        });
     });
 
     btnChangeOperator.addEventListener('click', async () => {
-        await chrome.storage.local.remove(['user_nome', 'user_equipe']);
-        inputNome.value = '';
-        broadcastCmd('changeOperator');
-        flashBtn(btnChangeOperator, 'Trocar Operador', 'Operador Deslogado ✓');
+        chrome.runtime.sendMessage({ action: 'auth-logout' }, async () => {
+            await chrome.storage.local.remove(['user_nome', 'user_equipe']);
+            inputNome.value = '';
+            broadcastCmd('changeOperator');
+            refreshOauthStatusUI();
+            flashBtn(btnChangeOperator, 'Trocar Operador', 'Operador Deslogado ✓');
+        });
     });
 
-    // --- SEÇÃO: SEGURANÇA ---
+    // --- SEÇÃO: SEGURANÇA & NUVEM (SUPABASE + WEBHOOK + WHITELIST) ---
+    const inputRedirectUri = document.getElementById('opt-redirect-uri');
+    const btnCopyRedirectUri = document.getElementById('btn-copy-redirect-uri');
+    const inputSupabaseUrl = document.getElementById('opt-supabase-url');
+    const inputSupabaseKey = document.getElementById('opt-supabase-key');
+    const btnSaveSupabase = document.getElementById('btn-save-supabase');
+    const supabaseTestStatus = document.getElementById('supabase-test-status');
+
     const inputWebhook = document.getElementById('opt-webhook-url');
     const inputWhitelist = document.getElementById('opt-whitelist');
     const btnSaveWebhook = document.getElementById('btn-save-webhook');
     const btnSaveWhitelist = document.getElementById('btn-save-whitelist');
 
-    const securityData = await chrome.storage.local.get(['webhook_url', 'operadores_whitelist']);
+    if (inputRedirectUri && chrome.identity?.getRedirectURL) {
+        inputRedirectUri.value = chrome.identity.getRedirectURL('oauth2');
+    }
+
+    btnCopyRedirectUri?.addEventListener('click', async () => {
+        if (!inputRedirectUri?.value) return;
+        await navigator.clipboard.writeText(inputRedirectUri.value);
+        flashBtn(btnCopyRedirectUri, 'Copiar URI', 'Copiado ✓');
+    });
+
+    const securityData = await chrome.storage.local.get([
+        'fd_supabase_url',
+        'fd_supabase_anon_key',
+        'webhook_url',
+        'operadores_whitelist'
+    ]);
+
+    if (securityData.fd_supabase_url && inputSupabaseUrl) {
+        inputSupabaseUrl.value = securityData.fd_supabase_url;
+    }
+    if (securityData.fd_supabase_anon_key && inputSupabaseKey) {
+        inputSupabaseKey.value = securityData.fd_supabase_anon_key;
+    }
     if (securityData.webhook_url) inputWebhook.value = securityData.webhook_url;
     if (securityData.operadores_whitelist) {
-        inputWhitelist.value = securityData.operadores_whitelist
-            .map(op => `${op.nome},${op.equipe}`)
-            .join('\n');
+        const rawList = typeof securityData.operadores_whitelist === 'string'
+            ? JSON.parse(securityData.operadores_whitelist)
+            : securityData.operadores_whitelist;
+        if (Array.isArray(rawList)) {
+            inputWhitelist.value = rawList
+                .map(op => `${op.nome},${op.equipe}`)
+                .join('\n');
+        }
     }
+
+    btnSaveSupabase?.addEventListener('click', async () => {
+        const url = (inputSupabaseUrl?.value || '').trim().replace(/\/+$/, '');
+        const anonKey = (inputSupabaseKey?.value || '').trim();
+
+        if (!url && !anonKey) {
+            await chrome.storage.local.remove(['fd_supabase_url', 'fd_supabase_anon_key']);
+            flashBtn(btnSaveSupabase, 'Salvar & Testar Conexão Cloud', 'Configuração Cloud removida');
+            refreshOauthStatusUI();
+            return;
+        }
+
+        if (!url.startsWith('https://') || !anonKey) {
+            flashBtn(btnSaveSupabase, 'Salvar & Testar Conexão Cloud', '❌ Preencha URL (https://) e Anon Key', true);
+            return;
+        }
+
+        await chrome.storage.local.set({
+            fd_supabase_url: url,
+            fd_supabase_anon_key: anonKey
+        });
+
+        if (supabaseTestStatus) {
+            supabaseTestStatus.style.display = 'block';
+            supabaseTestStatus.style.color = '#718096';
+            supabaseTestStatus.textContent = 'Testando comunicação com o projeto Supabase...';
+        }
+
+        chrome.runtime.sendMessage({ action: 'auth-test-connection', url, anonKey }, (res) => {
+            if (res?.ok) {
+                const gStatus = res.providers?.google ? 'Google ✅' : 'Google ⚠️ (desativado no Supabase)';
+                const mStatus = res.providers?.microsoft ? 'Microsoft ✅' : 'Microsoft ⚠️ (desativado no Supabase)';
+                if (supabaseTestStatus) {
+                    supabaseTestStatus.style.color = '#38a169';
+                    supabaseTestStatus.textContent = `Conexão estabelecida! Provedores: ${gStatus} | ${mStatus}`;
+                }
+                flashBtn(btnSaveSupabase, 'Salvar & Testar Conexão Cloud', 'Conectado ✓');
+                refreshOauthStatusUI();
+            } else {
+                if (supabaseTestStatus) {
+                    supabaseTestStatus.style.color = '#e53e3e';
+                    supabaseTestStatus.textContent = res?.error || 'Falha ao conectar ao Supabase.';
+                }
+                flashBtn(btnSaveSupabase, 'Salvar & Testar Conexão Cloud', '❌ Falha na conexão', true);
+            }
+        });
+    });
 
     btnSaveWebhook.addEventListener('click', async () => {
         const val = inputWebhook.value.trim();
@@ -123,7 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 whitelist.push({ nome: parts[0].trim(), equipe: parts[1].trim() });
             }
         }
-        await chrome.storage.local.set({ operadores_whitelist: whitelist });
+        await globalThis.SafeStorage.set('operadores_whitelist', whitelist);
         flashBtn(btnSaveWhitelist, 'Salvar Whitelist', 'Salvo ✓');
     });
 
@@ -142,7 +340,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             fin_painel_theme: isDark,
             fd_font_size: selectFontSize.value 
         });
-        // Feedback via toast não é necessário aqui
     };
 
     selectTheme.addEventListener('change', saveAppearance);

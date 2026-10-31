@@ -1,18 +1,64 @@
 // FlowDesk MV3 — popup.js
 // Sprint 1.2 — Configuração rápida de credenciais
+// Etapa 1 (v5.2.7) — Suporte a sessão OAuth 2.0 (Google & Microsoft) e parse resiliente
+
+function safeParse(val) {
+    if (val === undefined || val === null) return null;
+    if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch (_) { return val; }
+    }
+    return val;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Carregar identidade do operador parseando dados nativos do chrome.storage.local
-    const result = await chrome.storage.local.get(['user_nome', 'user_equipe']);
-    const nome = result.user_nome ? JSON.parse(result.user_nome) : null;
-    const equipe = result.user_equipe ? JSON.parse(result.user_equipe) : null;
-
     const statusEl = document.getElementById('status-operador');
-    if (nome && equipe) {
-        statusEl.textContent = `Ativo: ${nome} - ${equipe}`;
-    } else {
-        statusEl.textContent = `Identificar Operador (Login pendente)`;
-    }
+    const oauthActionsEl = document.getElementById('popup-oauth-actions');
+    const btnGoogle = document.getElementById('popup-btn-google');
+    const btnMicrosoft = document.getElementById('popup-btn-microsoft');
+
+    const renderIdentityStatus = async () => {
+        const result = await chrome.storage.local.get(['user_nome', 'user_equipe', 'user_email', 'user_provider']);
+        const nome = safeParse(result.user_nome);
+        const equipe = safeParse(result.user_equipe);
+        const email = safeParse(result.user_email);
+        const provider = safeParse(result.user_provider);
+
+        chrome.runtime.sendMessage({ action: 'auth-status' }, (res) => {
+            if (res?.authenticated && res?.user) {
+                const provLabel = (res.user.provider === 'microsoft' || res.user.provider === 'azure') ? 'Microsoft' : 'Google';
+                statusEl.textContent = `☁️ ${res.user.nome} (${res.user.equipe || 'Geral'}) • ${provLabel}`;
+                if (oauthActionsEl) oauthActionsEl.style.display = 'none';
+            } else if (nome && equipe) {
+                statusEl.textContent = email
+                    ? `☁️ ${nome} - ${equipe} (${provider || 'Cloud'})`
+                    : `Ativo: ${nome} - ${equipe}`;
+                if (oauthActionsEl) {
+                    oauthActionsEl.style.display = res?.cloudConfigured ? 'flex' : 'none';
+                }
+            } else {
+                statusEl.textContent = `Identificar Operador (Login pendente)`;
+                if (oauthActionsEl) {
+                    oauthActionsEl.style.display = res?.cloudConfigured ? 'flex' : 'none';
+                }
+            }
+        });
+    };
+
+    await renderIdentityStatus();
+
+    const triggerPopupLogin = (provider) => {
+        statusEl.textContent = `Autenticando via ${provider === 'google' ? 'Google' : 'Microsoft'}...`;
+        chrome.runtime.sendMessage({ action: 'auth-login', provider }, (res) => {
+            if (res?.ok) {
+                renderIdentityStatus();
+            } else {
+                statusEl.textContent = res?.error || 'Falha ao autenticar.';
+            }
+        });
+    };
+
+    btnGoogle?.addEventListener('click', () => triggerPopupLogin('google'));
+    btnMicrosoft?.addEventListener('click', () => triggerPopupLogin('microsoft'));
 
     // =========================================================================
     // CONTROLES DE INTERFACE (Sprint 8.3)

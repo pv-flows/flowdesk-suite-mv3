@@ -5,7 +5,7 @@
   <title>FlowDesk</title>
   <style>
     body {
-      width: 250px;
+      width: 260px;
       font-family: 'Inter', sans-serif;
       margin: 0;
       padding: 12px;
@@ -32,6 +32,7 @@
       color: #4a5568;
       text-align: left;
       transition: background 0.15s;
+      box-sizing: border-box;
     }
     .btn:hover {
       background: #edf2f7;
@@ -50,12 +51,38 @@
       text-align: center;
       padding-bottom: 8px;
       border-bottom: 1px solid #e2e8f0;
+      line-height: 1.4;
+    }
+    .oauth-mini-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .oauth-mini-btn {
+      flex: 1;
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      color: #2d3748;
+    }
+    .oauth-mini-btn:hover {
+      background: #edf2f7;
     }
   </style>
 </head>
 <body>
   <h2>⚙️ FlowDesk Menu</h2>
   <div id="status-operador">Carregando operador...</div>
+
+  <div id="popup-oauth-actions" class="oauth-mini-row" style="display: none;">
+      <button type="button" class="oauth-mini-btn" id="popup-btn-google">🔵 Google</button>
+      <button type="button" class="oauth-mini-btn" id="popup-btn-microsoft">🟦 Microsoft</button>
+  </div>
   
   <div style="margin-bottom: 10px;">
       <label style="font-size: 11px; font-weight: 600; color: #4a5568; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
